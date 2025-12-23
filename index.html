@@ -1299,6 +1299,7 @@
         document.getElementById('startBtn').addEventListener('click', () => {
             document.getElementById('startScreen').style.display = 'none';
             gameStarted = true;
+            initAudio();
             init();
             requestAnimationFrame(gameLoop);
         });
