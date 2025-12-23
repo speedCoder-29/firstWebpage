@@ -1544,12 +1544,16 @@
             const recoilAngleDelta = -(Math.abs(recoilAmt) * 0.02) + (Math.random() - 0.5) * recoilAmt * 0.01;
             player.recoilAngle += recoilAngleDelta;
 
-            // Apply positional backward kick (respect collisions)
-            const kick = (weapon.recoilKick !== undefined) ? weapon.recoilKick : recoilAmt * 0.3;
-            const newX = player.x - Math.cos(player.angle) * kick;
-            const newY = player.y - Math.sin(player.angle) * kick;
-            if (!checkCollision(newX, player.y, player.radius)) player.x = newX;
-            if (!checkCollision(player.x, newY, player.radius)) player.y = newY;
+            // Apply reduced positional backward kick only if player is currently moving
+            const isMoving = keys['w'] || keys['a'] || keys['s'] || keys['d'];
+            if (isMoving) {
+                const baseKick = (weapon.recoilKick !== undefined) ? weapon.recoilKick : recoilAmt * 0.3;
+                const kick = baseKick * 0.35; // reduce backward kick to 35% of base
+                const newX = player.x - Math.cos(player.angle) * kick;
+                const newY = player.y - Math.sin(player.angle) * kick;
+                if (!checkCollision(newX, player.y, player.radius)) player.x = newX;
+                if (!checkCollision(player.x, newY, player.radius)) player.y = newY;
+            }
         }
 
         function checkMeleeHit(x, y, angle, range, damage) {
@@ -1631,9 +1635,10 @@
                 dy /= len;
 
                 // Apply recoil movement penalty: player slows while recoil > 0
-                // Increased penalty: Speed reduces by 0.08 per recoil unit, clamped so player keeps at least 20% move speed
-                const recoilPenalty = Math.min(0.8, (player.recoil || 0) * 0.08);
-                const speedMultiplier = Math.max(0.2, 1 - recoilPenalty);
+                // Increased penalty: Speed reduces by 0.12 per recoil unit, clamped so player keeps at least 15% move speed
+                // Note: penalty only applies while actively moving (dx/dy != 0)
+                const recoilPenalty = Math.min(0.85, (player.recoil || 0) * 0.12);
+                const speedMultiplier = Math.max(0.15, 1 - recoilPenalty);
 
                 const newX = player.x + dx * player.speed * speedMultiplier;
                 const newY = player.y + dy * player.speed * speedMultiplier;
