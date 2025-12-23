@@ -1,0 +1,7 @@
+{
+  "enabledMcpjsonServers": [
+    "ct-devmcp",
+    "context7",
+    "vexmcp"
+  ]
+}
