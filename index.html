@@ -1989,13 +1989,14 @@
                             // Only shoot if has line of sight
                             if (hasLineOfSight(enemy.x, enemy.y, player.x, player.y)) {
                                 enemy.lastShot = Date.now();
-                                // Extra spread from enemy recoil accumulation
-                                const extraSpread = (enemy.recoil || 0) * 0.004;
-                                const spread = (Math.random() - 0.5) * weapon.spread * 8 + (Math.random() - 0.5) * extraSpread;
+                                // Reduced extra spread from enemy recoil accumulation
+                                const extraSpread = (enemy.recoil || 0) * 0.002; // smaller influence from recoil
+                                // Reduce enemy accuracy multipliers to make them tighter
+                                const spread = (Math.random() - 0.5) * weapon.spread * 4 + (Math.random() - 0.5) * extraSpread;
                                 const angleBase = Math.atan2(player.y - enemy.y, player.x - enemy.x) + enemy.recoilAngle + spread;
 
                                 for (let b = 0; b < weapon.bullets; b++) {
-                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 5;
+                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 2.5;
                                     bullets.push({
                                         x: enemy.x,
                                         y: enemy.y,
