@@ -1544,11 +1544,17 @@
             const recoilAngleDelta = -(Math.abs(recoilAmt) * 0.02) + (Math.random() - 0.5) * recoilAmt * 0.01;
             player.recoilAngle += recoilAngleDelta;
 
-            // Apply reduced positional backward kick only if player is currently moving
+            // Apply positional backward kick: reduced when moving, small kick when stationary
             const isMoving = keys['w'] || keys['a'] || keys['s'] || keys['d'];
+            const baseKick = (weapon.recoilKick !== undefined) ? weapon.recoilKick : recoilAmt * 0.3;
             if (isMoving) {
-                const baseKick = (weapon.recoilKick !== undefined) ? weapon.recoilKick : recoilAmt * 0.3;
-                const kick = baseKick * 0.35; // reduce backward kick to 35% of base
+                const kick = baseKick * 0.35; // reduced backward kick when moving
+                const newX = player.x - Math.cos(player.angle) * kick;
+                const newY = player.y - Math.sin(player.angle) * kick;
+                if (!checkCollision(newX, player.y, player.radius)) player.x = newX;
+                if (!checkCollision(player.x, newY, player.radius)) player.y = newY;
+            } else {
+                const kick = baseKick * 0.12; // small kick when stationary (12% of base)
                 const newX = player.x - Math.cos(player.angle) * kick;
                 const newY = player.y - Math.sin(player.angle) * kick;
                 if (!checkCollision(newX, player.y, player.radius)) player.x = newX;
