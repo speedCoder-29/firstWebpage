@@ -1652,7 +1652,7 @@
             // Create bullets - aim is not affected by recoil
             for (let i = 0; i < weapon.bullets; i++) {
                 // Only apply weapon spread, no aim deviation
-                const spread = (Math.random() - 0.5) * weapon.spread;
+                const spread = (Math.random() - 0.0) * weapon.spread;
                 const angle = player.angle + spread;
 
                 if (weapon.speed === 0) {
