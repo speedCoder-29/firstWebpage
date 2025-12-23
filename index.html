@@ -1537,19 +1537,15 @@
                 createMuzzleFlash(player.x + Math.cos(player.angle + player.recoilAngle) * 35, player.y + Math.sin(player.angle + player.recoilAngle) * 35);
             }
 
-            // Apply recoil to the player (angle offset + slight backward kick)
+            // Apply recoil to the player (angle offset only)
             const recoilAmt = weapon.recoil || 0;
             player.recoil = (player.recoil || 0) + recoilAmt;
             // Tend to push aim away from target slightly (negative to push 'up' relative to shot)
             const recoilAngleDelta = -(Math.abs(recoilAmt) * 0.02) + (Math.random() - 0.5) * recoilAmt * 0.01;
             player.recoilAngle += recoilAngleDelta;
 
-            // Slight backward displacement (respecting collisions)
-            const kick = (weapon.recoilKick !== undefined) ? weapon.recoilKick : recoilAmt * 0.3;
-            const newX = player.x - Math.cos(player.angle) * kick;
-            const newY = player.y - Math.sin(player.angle) * kick;
-            if (!checkCollision(newX, player.y, player.radius)) player.x = newX;
-            if (!checkCollision(player.x, newY, player.radius)) player.y = newY;
+            // NOTE: No positional kick on recoil — movement slowdown is handled via the recoil-based speed multiplier in updatePlayer.
+            // This prevents recoil from accidentally helping the player move backwards out of danger.
         }
 
         function checkMeleeHit(x, y, angle, range, damage) {
