@@ -1822,8 +1822,8 @@
                 }
             }
 
-            // Apply recoil - slows player down while firing
-            player.recoil = Math.min(0.9, (player.recoil || 0) + weaponRecoil * 0.4);
+            // Simple recoil - set to fixed value, doesn't stack
+            player.recoil = 0.5;
 
             // Muzzle flash and sound (only for guns)
             if (weapon.speed > 0) {
@@ -2601,29 +2601,37 @@
                                           bullet.y < building.y + building.height - wallThickness;
 
                         if (!inInterior) {
-                            // Check door openings if building has doors
+                            // Check door opening using doorSide and doorWidth
                             let inDoor = false;
-                            if (building.doors && building.doors.length > 0) {
-                                for (const door of building.doors) {
-                                    if (door.side === 'top' || door.side === 'bottom') {
-                                        const doorX = building.x + door.offset;
-                                        const doorY = door.side === 'top' ? building.y : building.y + building.height - wallThickness;
-                                        if (bullet.x > doorX && bullet.x < doorX + door.width &&
-                                            bullet.y > doorY && bullet.y < doorY + wallThickness) {
-                                            inDoor = true;
-                                            break;
-                                        }
-                                    } else {
-                                        const doorX = door.side === 'left' ? building.x : building.x + building.width - wallThickness;
-                                        const doorY = building.y + door.offset;
-                                        if (bullet.x > doorX && bullet.x < doorX + wallThickness &&
-                                            bullet.y > doorY && bullet.y < doorY + door.width) {
-                                            inDoor = true;
-                                            break;
-                                        }
-                                    }
+                            const doorWidth = building.doorWidth || 60;
+                            const doorSide = building.doorSide;
+
+                            if (doorSide === 0) { // Top
+                                const doorX = building.x + building.width / 2 - doorWidth / 2;
+                                if (bullet.x > doorX && bullet.x < doorX + doorWidth &&
+                                    bullet.y > building.y && bullet.y < building.y + wallThickness) {
+                                    inDoor = true;
+                                }
+                            } else if (doorSide === 1) { // Right
+                                const doorY = building.y + building.height / 2 - doorWidth / 2;
+                                if (bullet.x > building.x + building.width - wallThickness && bullet.x < building.x + building.width &&
+                                    bullet.y > doorY && bullet.y < doorY + doorWidth) {
+                                    inDoor = true;
+                                }
+                            } else if (doorSide === 2) { // Bottom
+                                const doorX = building.x + building.width / 2 - doorWidth / 2;
+                                if (bullet.x > doorX && bullet.x < doorX + doorWidth &&
+                                    bullet.y > building.y + building.height - wallThickness && bullet.y < building.y + building.height) {
+                                    inDoor = true;
+                                }
+                            } else if (doorSide === 3) { // Left
+                                const doorY = building.y + building.height / 2 - doorWidth / 2;
+                                if (bullet.x > building.x && bullet.x < building.x + wallThickness &&
+                                    bullet.y > doorY && bullet.y < doorY + doorWidth) {
+                                    inDoor = true;
                                 }
                             }
+
                             if (!inDoor) {
                                 hitWall = true;
                                 break;
