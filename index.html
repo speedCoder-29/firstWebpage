@@ -1631,9 +1631,9 @@
                 dy /= len;
 
                 // Apply recoil movement penalty: player slows while recoil > 0
-                // Speed reduces by 0.05 per recoil unit, clamped so player keeps at least 35% move speed
-                const recoilPenalty = Math.min(0.65, (player.recoil || 0) * 0.05);
-                const speedMultiplier = Math.max(0.35, 1 - recoilPenalty);
+                // Increased penalty: Speed reduces by 0.08 per recoil unit, clamped so player keeps at least 20% move speed
+                const recoilPenalty = Math.min(0.8, (player.recoil || 0) * 0.08);
+                const speedMultiplier = Math.max(0.2, 1 - recoilPenalty);
 
                 const newX = player.x + dx * player.speed * speedMultiplier;
                 const newY = player.y + dy * player.speed * speedMultiplier;
