@@ -613,7 +613,7 @@
         let killMessages = [];
         let airStrikes = []; // Active air strike zones
         let airStrikeWarnings = []; // Warning indicators before strike
-        let nextAirStrikeTime = 60000; // First air strike after 60 seconds
+        let nextAirStrikeTime = 20000; // First air strike after 20 seconds
         let lastAirStrikeCheck = 0;
 
         // Building templates
@@ -1427,11 +1427,11 @@
         function updateAirStrikes(dt) {
             // Check if it's time for a new air strike
             lastAirStrikeCheck += dt;
-            if (lastAirStrikeCheck >= nextAirStrikeTime && gameTime > 60) {
+            if (lastAirStrikeCheck >= nextAirStrikeTime) {
                 // Trigger air strike warning
                 triggerAirStrike();
                 lastAirStrikeCheck = 0;
-                nextAirStrikeTime = 30000 + Math.random() * 30000; // 30-60 seconds between strikes
+                nextAirStrikeTime = 20000; // 20 seconds between strikes
             }
 
             // Update warning phase
@@ -2956,7 +2956,27 @@
                 ctx.stroke();
             }
 
+            // Draw aim line (debug/visual aid)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y);
+            ctx.lineTo(player.x + Math.cos(player.angle) * 200, player.y + Math.sin(player.angle) * 200);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
             ctx.restore();
+
+            // Draw crosshair at mouse position (screen space)
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(mouse.x - 10, mouse.y);
+            ctx.lineTo(mouse.x + 10, mouse.y);
+            ctx.moveTo(mouse.x, mouse.y - 10);
+            ctx.lineTo(mouse.x, mouse.y + 10);
+            ctx.stroke();
 
             // Draw minimap
             renderMinimap();
