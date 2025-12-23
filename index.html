@@ -1653,7 +1653,7 @@
             for (let i = 0; i < weapon.bullets; i++) {
                 // Only apply weapon spread, no aim deviation
                 const spread =  weapon.spread;
-                const angle = player.angle + spread;
+                const angle = player.angle;
 
                 if (weapon.speed === 0) {
                     // Melee attack
