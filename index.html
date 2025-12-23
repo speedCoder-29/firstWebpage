@@ -1647,11 +1647,15 @@
             // Apply damage multiplier from upgrades
             const effectiveDamage = weapon.damage * (player.damageMultiplier || 1);
 
-            // Create bullets - shoot directly at mouse cursor
+            // Get weapon recoil (default to 0.05 if not specified)
+            const weaponRecoil = weapon.recoil || 0.05;
+
+            // Create bullets with recoil applied
             for (let i = 0; i < weapon.bullets; i++) {
-                // Only apply weapon spread, no recoil
+                // Apply weapon spread + current recoil offset
                 const spread = (Math.random() - 0.5) * weapon.spread;
-                const angle = player.angle + spread;
+                const recoilOffset = (player.recoilAngle || 0);
+                const angle = player.angle + spread + recoilOffset;
 
                 if (weapon.speed === 0) {
                     // Melee attack
@@ -1670,6 +1674,10 @@
                     });
                 }
             }
+
+            // Apply recoil after shooting (kicks aim upward)
+            player.recoil = Math.min(1, (player.recoil || 0) + weaponRecoil);
+            player.recoilAngle = (player.recoilAngle || 0) + (Math.random() - 0.5) * weaponRecoil * 0.5 - weaponRecoil * 0.3;
 
             // Muzzle flash (only for guns)
             if (weapon.speed > 0) {
@@ -1738,6 +1746,12 @@
         }
 
         function updatePlayer(dt) {
+            // Decay recoil over time (recover aim accuracy)
+            player.recoil = Math.max(0, (player.recoil || 0) - player.recoilRecovery * dt / 16.67);
+            player.recoilAngle = (player.recoilAngle || 0) * Math.pow(0.9, dt / 16.67);
+            // Snap very small recoil angles to 0 to prevent drift
+            if (Math.abs(player.recoilAngle) < 0.001) player.recoilAngle = 0;
+
             // Calculate angle to mouse - player is always at center of screen
             // so angle is simply from screen center to mouse position
             player.angle = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
