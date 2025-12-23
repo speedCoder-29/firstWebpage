@@ -1630,8 +1630,13 @@
                 dx /= len;
                 dy /= len;
 
-                const newX = player.x + dx * player.speed;
-                const newY = player.y + dy * player.speed;
+                // Apply recoil movement penalty: player slows while recoil > 0
+                // Speed reduces by 0.05 per recoil unit, clamped so player keeps at least 35% move speed
+                const recoilPenalty = Math.min(0.65, (player.recoil || 0) * 0.05);
+                const speedMultiplier = Math.max(0.35, 1 - recoilPenalty);
+
+                const newX = player.x + dx * player.speed * speedMultiplier;
+                const newY = player.y + dy * player.speed * speedMultiplier;
 
                 // Collision check
                 if (!checkCollision(newX, player.y, player.radius)) {
