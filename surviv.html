@@ -1647,21 +1647,19 @@
             // Apply damage multiplier from upgrades
             const effectiveDamage = weapon.damage * (player.damageMultiplier || 1);
 
-            // Create bullets
+            // Create bullets - shoot directly at mouse cursor
             for (let i = 0; i < weapon.bullets; i++) {
-                // Additional spread from accumulated recoil
-                const extraSpread = (player.recoil || 0) * 0.005;
-                const spread = (Math.random() - 0.5) * (weapon.spread * 2 + extraSpread);
-                // Apply current recoilAngle (aim offset) to shot
-                const angle = player.angle + player.recoilAngle + spread;
+                // Only apply weapon spread, no recoil
+                const spread = (Math.random() - 0.5) * weapon.spread;
+                const angle = player.angle + spread;
 
                 if (weapon.speed === 0) {
                     // Melee attack
                     checkMeleeHit(player.x, player.y, player.angle, weapon.range, effectiveDamage);
                 } else {
                     bullets.push({
-                        x: player.x + Math.cos(player.angle + player.recoilAngle) * 30,
-                        y: player.y + Math.sin(player.angle + player.recoilAngle) * 30,
+                        x: player.x + Math.cos(player.angle) * 30,
+                        y: player.y + Math.sin(player.angle) * 30,
                         vx: Math.cos(angle) * weapon.speed,
                         vy: Math.sin(angle) * weapon.speed,
                         damage: effectiveDamage,
@@ -1673,24 +1671,10 @@
                 }
             }
 
-            // Muzzle flash (only for guns) - use recoil-affected angle for visual kick
+            // Muzzle flash (only for guns)
             if (weapon.speed > 0) {
-                createMuzzleFlash(player.x + Math.cos(player.angle + player.recoilAngle) * 35, player.y + Math.sin(player.angle + player.recoilAngle) * 35);
+                createMuzzleFlash(player.x + Math.cos(player.angle) * 35, player.y + Math.sin(player.angle) * 35);
             }
-
-            // Apply recoil to the player (angle offset + slight backward kick)
-            const recoilAmt = weapon.recoil || 0;
-            player.recoil = (player.recoil || 0) + recoilAmt * 0.5;
-            // Smaller recoil angle effect - reduced by 50%
-            const recoilAngleDelta = -(Math.abs(recoilAmt) * 0.008) + (Math.random() - 0.5) * recoilAmt * 0.004;
-            player.recoilAngle = (player.recoilAngle || 0) + recoilAngleDelta;
-
-            // Slight backward displacement (respecting collisions)
-            const kick = (weapon.recoilKick !== undefined) ? weapon.recoilKick : recoilAmt * 0.3;
-            const newX = player.x - Math.cos(player.angle) * kick;
-            const newY = player.y - Math.sin(player.angle) * kick;
-            if (!checkCollision(newX, player.y, player.radius)) player.x = newX;
-            if (!checkCollision(player.x, newY, player.radius)) player.y = newY;
         }
 
         function checkMeleeHit(x, y, angle, range, damage) {
@@ -1754,16 +1738,9 @@
         }
 
         function updatePlayer(dt) {
-            // Decay recoil over time (recover aim accuracy)
-            player.recoil = Math.max(0, (player.recoil || 0) - 5 * dt / 16.67);
-            player.recoilAngle = (player.recoilAngle || 0) * Math.pow(0.85, dt / 16.67);
-            // Snap very small recoil angles to 0 to prevent drift
-            if (Math.abs(player.recoilAngle) < 0.001) player.recoilAngle = 0;
-
-            // Calculate angle to mouse
-            const worldMouseX = mouse.x - canvas.width / 2 + camera.x;
-            const worldMouseY = mouse.y - canvas.height / 2 + camera.y;
-            player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
+            // Calculate angle to mouse - player is always at center of screen
+            // so angle is simply from screen center to mouse position
+            player.angle = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
 
             // Movement
             let dx = 0, dy = 0;
