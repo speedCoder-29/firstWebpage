@@ -611,6 +611,10 @@
         let fireZones = []; // For molotov fire areas
         let smokeZones = []; // For smoke grenade areas
         let killMessages = [];
+        let airStrikes = []; // Active air strike zones
+        let airStrikeWarnings = []; // Warning indicators before strike
+        let nextAirStrikeTime = 60000; // First air strike after 60 seconds
+        let lastAirStrikeCheck = 0;
 
         // Building templates
         const BUILDING_TEMPLATES = [
@@ -1402,6 +1406,143 @@
             }
         }
 
+        // Check if position is inside a bunker (protected from air strikes)
+        function isInBunker(x, y) {
+            for (const bunker of bunkers) {
+                // Check underground room
+                if (x > bunker.x + 15 && x < bunker.x + bunker.width - 15 &&
+                    y > bunker.y + 15 && y < bunker.y + bunker.height - 15) {
+                    return true;
+                }
+                // Check staircase
+                const stairX = bunker.entranceX + bunker.entranceWidth / 2 - bunker.staircaseWidth / 2;
+                if (x > stairX && x < stairX + bunker.staircaseWidth &&
+                    y > bunker.entranceY + bunker.entranceHeight && y < bunker.y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function updateAirStrikes(dt) {
+            // Check if it's time for a new air strike
+            lastAirStrikeCheck += dt;
+            if (lastAirStrikeCheck >= nextAirStrikeTime && gameTime > 60) {
+                // Trigger air strike warning
+                triggerAirStrike();
+                lastAirStrikeCheck = 0;
+                nextAirStrikeTime = 30000 + Math.random() * 30000; // 30-60 seconds between strikes
+            }
+
+            // Update warning phase
+            for (let i = airStrikeWarnings.length - 1; i >= 0; i--) {
+                const warning = airStrikeWarnings[i];
+                warning.timer -= dt;
+                if (warning.timer <= 0) {
+                    // Execute air strike
+                    executeAirStrike(warning);
+                    airStrikeWarnings.splice(i, 1);
+                }
+            }
+
+            // Update active strikes
+            for (let i = airStrikes.length - 1; i >= 0; i--) {
+                const strike = airStrikes[i];
+                strike.timer -= dt;
+
+                // Spawn explosion particles during strike
+                if (Math.random() < 0.3) {
+                    const explosionX = strike.x + (Math.random() - 0.5) * strike.radius * 2;
+                    const explosionY = strike.y + (Math.random() - 0.5) * strike.radius * 2;
+                    createExplosion(explosionX, explosionY);
+                }
+
+                if (strike.timer <= 0) {
+                    airStrikes.splice(i, 1);
+                }
+            }
+        }
+
+        function triggerAirStrike() {
+            // Create warning zone at random location within current safe zone
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * zone.radius * 0.7;
+            const strikeX = zone.x + Math.cos(angle) * dist;
+            const strikeY = zone.y + Math.sin(angle) * dist;
+            const strikeRadius = 400 + Math.random() * 300; // 400-700 radius
+
+            airStrikeWarnings.push({
+                x: strikeX,
+                y: strikeY,
+                radius: strikeRadius,
+                timer: 5000 // 5 second warning
+            });
+
+            addKillMessage('AIR STRIKE INCOMING! Get to a bunker!');
+        }
+
+        function executeAirStrike(warning) {
+            // Create active strike zone
+            airStrikes.push({
+                x: warning.x,
+                y: warning.y,
+                radius: warning.radius,
+                timer: 3000, // Strike lasts 3 seconds
+                damage: 50 // Damage per second
+            });
+
+            // Damage all entities in strike zone (unless in bunker)
+            // Player
+            const playerDist = Math.sqrt(Math.pow(player.x - warning.x, 2) + Math.pow(player.y - warning.y, 2));
+            if (playerDist < warning.radius && !isInBunker(player.x, player.y)) {
+                player.health -= 200; // Massive damage - almost instant kill
+                createDamageParticle(player.x, player.y);
+                updateHealthBar();
+                if (player.health <= 0) {
+                    endGame(false);
+                }
+            }
+
+            // Enemies
+            enemies.forEach(enemy => {
+                const dist = Math.sqrt(Math.pow(enemy.x - warning.x, 2) + Math.pow(enemy.y - warning.y, 2));
+                if (dist < warning.radius && !isInBunker(enemy.x, enemy.y)) {
+                    enemy.health -= 200;
+                    createDamageParticle(enemy.x, enemy.y);
+                }
+            });
+
+            // Destroy obstacles in blast zone
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                const dist = Math.sqrt(Math.pow(obs.x - warning.x, 2) + Math.pow(obs.y - warning.y, 2));
+                if (dist < warning.radius) {
+                    if (obs.type === 'crate') {
+                        spawnLootAt(obs.x, obs.y);
+                    }
+                    obstacles.splice(i, 1);
+                }
+            }
+        }
+
+        function createExplosion(x, y) {
+            for (let i = 0; i < 8; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 4;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 5 + Math.random() * 10,
+                    color: Math.random() > 0.5 ? '#ff4500' : '#ff8800',
+                    life: 400,
+                    maxLife: 400,
+                    type: 'blood'
+                });
+            }
+        }
+
         function explodeGrenade(g, index) {
             const grenade = GRENADES[g.type];
 
@@ -1725,12 +1866,33 @@
                 }
             }
 
-            // Check bunkers (underground areas - no collision inside)
+            // Check bunkers (underground areas with staircase entrance)
             for (const bunker of bunkers) {
-                // Inside bunker entrance area - no collision
-                if (x > bunker.x + 10 && x < bunker.x + bunker.width - 10 &&
-                    y > bunker.y + 10 && y < bunker.y + bunker.height - 10) {
-                    continue; // Inside bunker is fine
+                // Check if in entrance area (above ground staircase)
+                if (x > bunker.entranceX && x < bunker.entranceX + bunker.entranceWidth &&
+                    y > bunker.entranceY && y < bunker.entranceY + bunker.entranceHeight) {
+                    continue; // In entrance, no collision
+                }
+                // Check if in staircase (connecting entrance to underground room)
+                const stairX = bunker.entranceX + bunker.entranceWidth / 2 - bunker.staircaseWidth / 2;
+                if (x > stairX && x < stairX + bunker.staircaseWidth &&
+                    y > bunker.entranceY + bunker.entranceHeight && y < bunker.y) {
+                    continue; // On staircase, no collision
+                }
+                // Check if in underground room
+                if (x > bunker.x + 15 && x < bunker.x + bunker.width - 15 &&
+                    y > bunker.y + 15 && y < bunker.y + bunker.height - 15) {
+                    continue; // Inside underground room, no collision
+                }
+                // Check bunker walls
+                if (x + radius > bunker.x && x - radius < bunker.x + bunker.width &&
+                    y + radius > bunker.y && y - radius < bunker.y + bunker.height) {
+                    // Check if trying to enter through staircase opening at top
+                    const openingX = bunker.entranceX + bunker.entranceWidth / 2 - bunker.staircaseWidth / 2;
+                    if (y - radius < bunker.y + 15 && x > openingX && x < openingX + bunker.staircaseWidth) {
+                        continue; // Entering through staircase
+                    }
+                    return true; // Hit bunker wall
                 }
             }
 
@@ -1923,26 +2085,41 @@
                     }
                 }
 
-                // Move towards zone if outside
+                // Check for nearby chests to loot while wandering
+                let nearbyChest = null;
+                for (const chest of chests) {
+                    if (!chest.opened) {
+                        const distToChest = Math.sqrt(Math.pow(enemy.x - chest.x, 2) + Math.pow(enemy.y - chest.y, 2));
+                        if (distToChest < 300) {
+                            nearbyChest = chest;
+                            break;
+                        }
+                    }
+                }
+
+                // Can enemy see player? (for attacking while fleeing zone)
+                const canSeePlayer = distToPlayer < 600 && hasLineOfSight(enemy.x, enemy.y, player.x, player.y);
+
+                // Move towards zone if outside - but still attack player if visible
                 if (distToZone > zone.radius * 0.8) {
-                    enemy.state = 'zone';
-                    enemy.targetX = zone.x + (Math.random() - 0.5) * zone.radius;
-                    enemy.targetY = zone.y + (Math.random() - 0.5) * zone.radius;
-                // If player is fleeing (outside zone and moving toward the safe center), intercept and predict path
-                } else if (player.isFleeing && distToPlayer < 1200) {
-                    // If close enough, go into full combat; otherwise move to predicted intercept
-                    if (distToPlayer < 600) {
-                        enemy.state = 'combat';
+                    if (canSeePlayer) {
+                        // Attack player while fleeing to zone
+                        enemy.state = 'zone_combat';
+                        enemy.targetX = zone.x + (Math.random() - 0.5) * zone.radius * 0.5;
+                        enemy.targetY = zone.y + (Math.random() - 0.5) * zone.radius * 0.5;
                     } else {
-                        enemy.state = 'intercept';
-                        const pvx = player.x - (player.lastPos ? player.lastPos.x : player.x);
-                        const pvy = player.y - (player.lastPos ? player.lastPos.y : player.y);
-                        // Predict a point ahead of player's movement (tweak multiplier to tune interception)
-                        enemy.targetX = player.x + pvx * 25;
-                        enemy.targetY = player.y + pvy * 25;
+                        enemy.state = 'zone';
+                        enemy.targetX = zone.x + (Math.random() - 0.5) * zone.radius;
+                        enemy.targetY = zone.y + (Math.random() - 0.5) * zone.radius;
                     }
                 } else if (distToPlayer < 600) {
                     enemy.state = 'combat';
+                } else if (nearbyChest && Math.random() < 0.3) {
+                    // Go loot a nearby chest
+                    enemy.state = 'loot_chest';
+                    enemy.targetChest = nearbyChest;
+                    enemy.targetX = nearbyChest.x + nearbyChest.width / 2;
+                    enemy.targetY = nearbyChest.y + nearbyChest.height / 2;
                 } else if (!enemy.weapon && Math.random() < 0.15) {
                     // Look for weapons if unarmed - more aggressive search
                     enemy.state = 'loot';
@@ -1959,6 +2136,20 @@
                     enemy.state = 'wander';
                     enemy.targetX = enemy.x + (Math.random() - 0.5) * 400;
                     enemy.targetY = enemy.y + (Math.random() - 0.5) * 400;
+                }
+
+                // If looting chest, check if we reached it
+                if (enemy.state === 'loot_chest' && enemy.targetChest) {
+                    const distToChest = Math.sqrt(
+                        Math.pow(enemy.x - (enemy.targetChest.x + enemy.targetChest.width/2), 2) +
+                        Math.pow(enemy.y - (enemy.targetChest.y + enemy.targetChest.height/2), 2)
+                    );
+                    if (distToChest < 40 && !enemy.targetChest.opened) {
+                        // Open the chest
+                        openChest(enemy.targetChest);
+                        enemy.targetChest = null;
+                        enemy.state = 'wander';
+                    }
                 }
 
                 // Movement
@@ -2054,6 +2245,39 @@
                         targetY += perpY * enemy.strafeDir * (strafeBase + Math.random() * 40) + strafeNoise;
                     }
 
+                } else if (enemy.state === 'zone_combat') {
+                    // Moving to zone but attacking player
+                    targetX = enemy.targetX;
+                    targetY = enemy.targetY;
+
+                    // Still attack the player while fleeing
+                    const weapon = enemy.weapon ? WEAPONS[enemy.weapon] : WEAPONS['fists'];
+                    const isMelee = weapon.melee || false;
+
+                    if (enemy.weapon && !isMelee) {
+                        // Shoot at player while running
+                        if (Date.now() - enemy.lastShot > weapon.fireRate && distToPlayer < weapon.range) {
+                            if (hasLineOfSight(enemy.x, enemy.y, player.x, player.y)) {
+                                enemy.lastShot = Date.now();
+                                const spread = (Math.random() - 0.5) * weapon.spread * 10; // Less accurate while running
+                                const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x) + spread;
+
+                                for (let b = 0; b < weapon.bullets; b++) {
+                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 6;
+                                    bullets.push({
+                                        x: enemy.x,
+                                        y: enemy.y,
+                                        vx: Math.cos(angle + bulletSpread) * weapon.speed * 0.8,
+                                        vy: Math.sin(angle + bulletSpread) * weapon.speed * 0.8,
+                                        damage: weapon.damage,
+                                        range: weapon.range,
+                                        traveled: 0,
+                                        owner: 'enemy'
+                                    });
+                                }
+                            }
+                        }
+                    }
                 } else {
                     targetX = enemy.targetX;
                     targetY = enemy.targetY;
@@ -2400,39 +2624,95 @@
                 ctx.setLineDash([]);
             }
 
-            // Draw bunkers (underground structures)
+            // Draw air strike warnings (flashing red circles)
+            airStrikeWarnings.forEach(warning => {
+                const flash = Math.sin(Date.now() / 100) > 0;
+                ctx.strokeStyle = flash ? 'rgba(255, 0, 0, 0.8)' : 'rgba(255, 100, 100, 0.5)';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([15, 15]);
+                ctx.beginPath();
+                ctx.arc(warning.x, warning.y, warning.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Warning text
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('AIR STRIKE IN ' + Math.ceil(warning.timer / 1000) + 's', warning.x, warning.y - warning.radius - 20);
+            });
+
+            // Draw active air strikes
+            airStrikes.forEach(strike => {
+                ctx.fillStyle = 'rgba(255, 100, 0, 0.3)';
+                ctx.beginPath();
+                ctx.arc(strike.x, strike.y, strike.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw bunkers (underground structures with staircase)
             bunkers.forEach(bunker => {
-                // Bunker entrance/floor (dark concrete)
+                // 1. Draw above-ground entrance
+                ctx.fillStyle = '#3a3a3a';
+                ctx.fillRect(bunker.entranceX, bunker.entranceY, bunker.entranceWidth, bunker.entranceHeight);
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(bunker.entranceX, bunker.entranceY, bunker.entranceWidth, bunker.entranceHeight);
+
+                // Entrance warning stripes
+                ctx.fillStyle = '#ffcc00';
+                for (let i = 0; i < 3; i++) {
+                    ctx.fillRect(bunker.entranceX + 10 + i * 15, bunker.entranceY + 5, 10, 6);
+                }
+
+                // Bunker label above entrance
+                ctx.fillStyle = '#ff4444';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('BUNKER', bunker.entranceX + bunker.entranceWidth / 2, bunker.entranceY - 8);
+
+                // 2. Draw staircase connecting entrance to underground room
+                const stairX = bunker.entranceX + bunker.entranceWidth / 2 - bunker.staircaseWidth / 2;
+                const stairY = bunker.entranceY + bunker.entranceHeight;
+                const stairLength = bunker.y - stairY;
+
+                // Staircase floor
+                ctx.fillStyle = '#333';
+                ctx.fillRect(stairX, stairY, bunker.staircaseWidth, stairLength);
+
+                // Stair steps
+                ctx.fillStyle = '#444';
+                const numSteps = 8;
+                const stepHeight = stairLength / numSteps;
+                for (let i = 0; i < numSteps; i++) {
+                    ctx.fillRect(stairX + 2, stairY + i * stepHeight, bunker.staircaseWidth - 4, 3);
+                }
+
+                // Staircase walls
+                ctx.fillStyle = '#555';
+                ctx.fillRect(stairX - 5, stairY, 5, stairLength);
+                ctx.fillRect(stairX + bunker.staircaseWidth, stairY, 5, stairLength);
+
+                // 3. Draw underground room
+                // Floor
                 ctx.fillStyle = '#2a2a2a';
                 ctx.fillRect(bunker.x, bunker.y, bunker.width, bunker.height);
 
                 // Inner floor (slightly lighter)
-                ctx.fillStyle = '#3a3a3a';
+                ctx.fillStyle = '#353535';
                 ctx.fillRect(bunker.x + 15, bunker.y + 15, bunker.width - 30, bunker.height - 30);
 
-                // Bunker walls (thick concrete)
+                // Walls
                 ctx.fillStyle = '#4a4a4a';
                 ctx.fillRect(bunker.x, bunker.y, bunker.width, 15); // Top
                 ctx.fillRect(bunker.x, bunker.y + bunker.height - 15, bunker.width, 15); // Bottom
                 ctx.fillRect(bunker.x, bunker.y, 15, bunker.height); // Left
                 ctx.fillRect(bunker.x + bunker.width - 15, bunker.y, 15, bunker.height); // Right
 
-                // Entrance (open on top)
-                ctx.fillStyle = '#3a3a3a';
-                const entranceX = bunker.x + bunker.width / 2 - bunker.entranceSize / 2;
-                ctx.fillRect(entranceX, bunker.y, bunker.entranceSize, 15);
-
-                // Bunker label
-                ctx.fillStyle = '#ff4444';
-                ctx.font = 'bold 14px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('BUNKER', bunker.x + bunker.width / 2, bunker.y - 5);
-
-                // Warning stripes on entrance
-                ctx.fillStyle = '#ffcc00';
-                for (let i = 0; i < 3; i++) {
-                    ctx.fillRect(entranceX + 5 + i * 18, bunker.y + 3, 10, 9);
-                }
+                // Opening for staircase at top
+                ctx.fillStyle = '#353535';
+                const openingX = bunker.entranceX + bunker.entranceWidth / 2 - bunker.staircaseWidth / 2;
+                ctx.fillRect(openingX, bunker.y, bunker.staircaseWidth, 15);
             });
 
             // Draw buildings
@@ -2731,10 +3011,22 @@
                 minimapCtx.setLineDash([]);
             }
 
-            // Bunkers (dark red on minimap)
+            // Bunkers (dark red on minimap - show entrance and underground room)
             minimapCtx.fillStyle = '#8B0000';
             bunkers.forEach(b => {
+                // Draw entrance
+                minimapCtx.fillRect(b.entranceX * scale, b.entranceY * scale, b.entranceWidth * scale, b.entranceHeight * scale);
+                // Draw underground room
                 minimapCtx.fillRect(b.x * scale, b.y * scale, b.width * scale, b.height * scale);
+            });
+
+            // Air strike warnings on minimap
+            minimapCtx.strokeStyle = '#ff0000';
+            minimapCtx.lineWidth = 2;
+            airStrikeWarnings.forEach(w => {
+                minimapCtx.beginPath();
+                minimapCtx.arc(w.x * scale, w.y * scale, w.radius * scale, 0, Math.PI * 2);
+                minimapCtx.stroke();
             });
 
             // Buildings
@@ -2776,6 +3068,7 @@
                 updateEnemies(dt);
                 updateBullets(dt);
                 updateGrenades(dt);
+                updateAirStrikes(dt);
                 updateParticles(dt);
                 updateZone(dt);
                 updateLeaderboard();
