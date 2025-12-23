@@ -919,8 +919,12 @@
                     state: 'wander',
                     targetX: Math.random() * MAP_SIZE,
                     targetY: Math.random() * MAP_SIZE,
+                    // Strafing/random-movement while attacking
+                    strafeDir: Math.random() < 0.5 ? -1 : 1,
+                    strafeTimer: 0.5 + Math.random() * 1.0,
+                    strafeCooldown: 0,
                     name: 'Bot' + (i + 1)
-                };
+                }; 
                 enemies.push(enemy);
             }
             aliveCount = numEnemies + 1; // +1 for player
@@ -1982,6 +1986,38 @@
                             }
                         }
                     }
+
+                    // --- Strafing / random movement around the player while in combat ---
+                    // Change strafing direction occasionally
+                    enemy.strafeTimer -= dt;
+                    if (enemy.strafeTimer <= 0) {
+                        enemy.strafeTimer = 0.6 + Math.random() * 1.2; // change direction every ~0.6-1.8s
+                        enemy.strafeDir = Math.random() < 0.5 ? -1 : 1;
+                    }
+
+                    // Compute perpendicular (to player) vector for strafing
+                    const toPlayerX = player.x - enemy.x;
+                    const toPlayerY = player.y - enemy.y;
+                    const toLen = Math.max(1, Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY));
+                    const perpX = -toPlayerY / toLen;
+                    const perpY = toPlayerX / toLen;
+
+                    const strafeBase = (isMelee ? 30 : 90); // melee strafes smaller; ranged wider
+                    const strafeNoise = (Math.random() - 0.5) * 20;
+
+                    // If ranged and too close, back up and strafe
+                    if (!isMelee && distToPlayer < Math.min(weapon.range, 200)) {
+                        const backDist = Math.max(80, weapon.range * 0.6);
+                        const backX = (enemy.x - player.x) / Math.max(1, distToPlayer);
+                        const backY = (enemy.y - player.y) / Math.max(1, distToPlayer);
+                        targetX = player.x + backX * backDist + perpX * enemy.strafeDir * (strafeBase + Math.random() * 40) + strafeNoise;
+                        targetY = player.y + backY * backDist + perpY * enemy.strafeDir * (strafeBase + Math.random() * 40) + strafeNoise;
+                    } else {
+                        // Normal strafing offset around target point
+                        targetX += perpX * enemy.strafeDir * (strafeBase + Math.random() * 40) + strafeNoise;
+                        targetY += perpY * enemy.strafeDir * (strafeBase + Math.random() * 40) + strafeNoise;
+                    }
+
                 } else {
                     targetX = enemy.targetX;
                     targetY = enemy.targetY;
