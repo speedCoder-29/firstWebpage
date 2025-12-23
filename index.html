@@ -1675,9 +1675,10 @@
                 }
             }
 
-            // Apply recoil after shooting (kicks aim upward)
+            // Apply recoil after shooting (random kick, no directional bias)
             player.recoil = Math.min(1, (player.recoil || 0) + weaponRecoil);
-            player.recoilAngle = (player.recoilAngle || 0) + (Math.random() - 0.5) * weaponRecoil * 0.5 - weaponRecoil * 0.3;
+            // Random kick in either direction, centered around 0
+            player.recoilAngle = (player.recoilAngle || 0) + (Math.random() - 0.5) * weaponRecoil;
 
             // Muzzle flash (only for guns)
             if (weapon.speed > 0) {
