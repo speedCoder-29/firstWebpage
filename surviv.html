@@ -328,6 +328,33 @@
             font-size: 14px;
             font-weight: bold;
         }
+        #grenadeBar {
+            position: fixed;
+            bottom: 130px;
+            right: 20px;
+            display: flex;
+            gap: 5px;
+        }
+        .grenade-slot {
+            width: 45px;
+            height: 45px;
+            background: rgba(0,0,0,0.7);
+            border: 2px solid #555;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 9px;
+        }
+        .grenade-slot.active {
+            border-color: #ffd700;
+        }
+        .grenade-slot .count {
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -335,11 +362,9 @@
 
     <div id="startScreen">
         <h1>SURVIV.IO</h1>
-        <p>WASD - Move</p>
-        <p>Mouse - Aim & Shoot</p>
-        <p>R - Reload</p>
-        <p>1/2/3/4 - Switch Weapons</p>
-        <p>F - Interact/Pickup</p>
+        <p>WASD - Move | Mouse - Aim & Shoot</p>
+        <p>1-6 - Switch Weapons | F - Interact/Pickup</p>
+        <p>G - Throw Grenade | Tab - Cycle Grenades</p>
         <p>E - Use Bandage | Q - Use Medkit</p>
         <button id="startBtn">PLAY</button>
     </div>
@@ -425,6 +450,21 @@
     <div id="healthBar">
         <div id="healthFill" style="width: 100%"></div>
         <div id="healthText">100</div>
+    </div>
+
+    <div id="grenadeBar">
+        <div class="grenade-slot active" id="fragSlot">
+            <span class="count" id="fragCount">0</span>
+            <span>Frag</span>
+        </div>
+        <div class="grenade-slot" id="smokeSlot">
+            <span class="count" id="smokeCount">0</span>
+            <span>Smoke</span>
+        </div>
+        <div class="grenade-slot" id="molotovSlot">
+            <span class="count" id="molotovCount">0</span>
+            <span>Molotov</span>
+        </div>
     </div>
 
     <script>
@@ -978,6 +1018,17 @@
                 player.medkits--;
                 document.getElementById('medkitCount').textContent = player.medkits;
             }
+
+            // Throw grenade
+            if (e.key.toLowerCase() === 'g') {
+                throwGrenade();
+            }
+
+            // Cycle grenades
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                cycleGrenade();
+            }
         });
 
         document.addEventListener('keyup', e => {
@@ -1125,7 +1176,188 @@
         }
 
         function updateGrenadeUI() {
-            // Update grenade counts in UI if we add grenade display
+            document.getElementById('fragCount').textContent = player.grenades.frag;
+            document.getElementById('smokeCount').textContent = player.grenades.smoke;
+            document.getElementById('molotovCount').textContent = player.grenades.molotov;
+
+            // Update active state
+            document.getElementById('fragSlot').classList.toggle('active', player.currentGrenade === 'frag');
+            document.getElementById('smokeSlot').classList.toggle('active', player.currentGrenade === 'smoke');
+            document.getElementById('molotovSlot').classList.toggle('active', player.currentGrenade === 'molotov');
+        }
+
+        function cycleGrenade() {
+            const types = ['frag', 'smoke', 'molotov'];
+            const currentIndex = types.indexOf(player.currentGrenade);
+            player.currentGrenade = types[(currentIndex + 1) % types.length];
+            updateGrenadeUI();
+        }
+
+        function throwGrenade() {
+            if (player.grenades[player.currentGrenade] <= 0) return;
+
+            player.grenades[player.currentGrenade]--;
+            updateGrenadeUI();
+
+            const grenade = GRENADES[player.currentGrenade];
+            const speed = 12;
+
+            thrownGrenades.push({
+                x: player.x,
+                y: player.y,
+                vx: Math.cos(player.angle) * speed,
+                vy: Math.sin(player.angle) * speed,
+                type: player.currentGrenade,
+                thrownAt: Date.now(),
+                owner: 'player'
+            });
+        }
+
+        function updateGrenades(dt) {
+            for (let i = thrownGrenades.length - 1; i >= 0; i--) {
+                const g = thrownGrenades[i];
+                const grenade = GRENADES[g.type];
+
+                // Move grenade
+                g.x += g.vx;
+                g.y += g.vy;
+                g.vx *= 0.97; // Friction
+                g.vy *= 0.97;
+
+                // Check for wall collision
+                if (checkCollision(g.x, g.y, 5)) {
+                    g.vx *= -0.5;
+                    g.vy *= -0.5;
+                }
+
+                // Check if fuse expired
+                if (Date.now() - g.thrownAt >= grenade.fuseTime) {
+                    explodeGrenade(g, i);
+                }
+            }
+
+            // Update fire zones
+            for (let i = fireZones.length - 1; i >= 0; i--) {
+                const fire = fireZones[i];
+                fire.life -= dt;
+                if (fire.life <= 0) {
+                    fireZones.splice(i, 1);
+                    continue;
+                }
+
+                // Damage entities in fire
+                const dist = Math.sqrt(Math.pow(player.x - fire.x, 2) + Math.pow(player.y - fire.y, 2));
+                if (dist < fire.radius) {
+                    player.health -= GRENADES.molotov.damage * dt / 1000;
+                    updateHealthBar();
+                    if (player.health <= 0) {
+                        endGame(false);
+                    }
+                }
+
+                enemies.forEach(enemy => {
+                    const d = Math.sqrt(Math.pow(enemy.x - fire.x, 2) + Math.pow(enemy.y - fire.y, 2));
+                    if (d < fire.radius) {
+                        enemy.health -= GRENADES.molotov.damage * dt / 1000;
+                    }
+                });
+            }
+
+            // Update smoke zones
+            for (let i = smokeZones.length - 1; i >= 0; i--) {
+                const smoke = smokeZones[i];
+                smoke.life -= dt;
+                if (smoke.life <= 0) {
+                    smokeZones.splice(i, 1);
+                }
+            }
+        }
+
+        function explodeGrenade(g, index) {
+            const grenade = GRENADES[g.type];
+
+            if (grenade.fire) {
+                // Molotov creates fire zone
+                fireZones.push({
+                    x: g.x,
+                    y: g.y,
+                    radius: grenade.radius,
+                    life: grenade.duration
+                });
+            } else if (grenade.smoke) {
+                // Smoke grenade creates smoke zone
+                smokeZones.push({
+                    x: g.x,
+                    y: g.y,
+                    radius: grenade.radius,
+                    life: 8000 // Smoke lasts 8 seconds
+                });
+            } else {
+                // Frag grenade damages nearby entities
+                // Damage player
+                const playerDist = Math.sqrt(Math.pow(player.x - g.x, 2) + Math.pow(player.y - g.y, 2));
+                if (playerDist < grenade.radius) {
+                    const damage = grenade.damage * (1 - playerDist / grenade.radius);
+                    player.health -= damage * (player.armor || 0.5);
+                    createDamageParticle(player.x, player.y);
+                    updateHealthBar();
+                    if (player.health <= 0) {
+                        endGame(false);
+                    }
+                }
+
+                // Damage enemies
+                enemies.forEach(enemy => {
+                    const dist = Math.sqrt(Math.pow(enemy.x - g.x, 2) + Math.pow(enemy.y - g.y, 2));
+                    if (dist < grenade.radius) {
+                        const damage = grenade.damage * (1 - dist / grenade.radius);
+                        enemy.health -= damage;
+                        createDamageParticle(enemy.x, enemy.y);
+                        if (enemy.health <= 0 && g.owner === 'player') {
+                            kills++;
+                            document.getElementById('kills').textContent = kills;
+                            addKillMessage('You killed ' + enemy.name + ' with ' + grenade.name);
+                            player.health = player.maxHealth;
+                            updateHealthBar();
+                            checkForUpgrade();
+                        }
+                    }
+                });
+
+                // Destroy nearby obstacles
+                for (let j = obstacles.length - 1; j >= 0; j--) {
+                    const obs = obstacles[j];
+                    const dist = Math.sqrt(Math.pow(obs.x - g.x, 2) + Math.pow(obs.y - g.y, 2));
+                    if (dist < grenade.radius) {
+                        obs.health -= grenade.damage * 0.5;
+                        if (obs.health <= 0) {
+                            if (obs.type === 'crate') {
+                                spawnLootAt(obs.x, obs.y);
+                            }
+                            obstacles.splice(j, 1);
+                        }
+                    }
+                }
+            }
+
+            // Create explosion particles
+            for (let i = 0; i < 20; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 5;
+                particles.push({
+                    x: g.x,
+                    y: g.y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 4 + Math.random() * 4,
+                    color: grenade.fire ? '#ff4500' : (grenade.smoke ? '#888' : '#ff8800'),
+                    life: 500,
+                    maxLife: 500,
+                    type: 'blood'
+                });
+            }
+
+            thrownGrenades.splice(index, 1);
         }
 
         function shoot() {
@@ -1337,8 +1569,8 @@
             for (const building of buildings) {
                 if (x + radius > building.x && x - radius < building.x + building.width &&
                     y + radius > building.y && y - radius < building.y + building.height) {
-                    // Check if in door
-                    const doorSize = 40;
+                    // Check if in door (use building's doorWidth)
+                    const doorSize = building.doorWidth || 60;
                     let inDoor = false;
 
                     if (building.doorSide === 0 && y < building.y + 10) { // Top door
@@ -1369,6 +1601,99 @@
             return false;
         }
 
+        // Helper function to check if there's a clear line of sight to target
+        function hasLineOfSight(x1, y1, x2, y2) {
+            const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            const steps = Math.ceil(dist / 20);
+            for (let i = 1; i < steps; i++) {
+                const t = i / steps;
+                const testX = x1 + (x2 - x1) * t;
+                const testY = y1 + (y2 - y1) * t;
+                if (checkCollision(testX, testY, 5)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Find obstacle blocking the path
+        function getBlockingObstacle(x, y, targetX, targetY) {
+            const dist = Math.sqrt(Math.pow(targetX - x, 2) + Math.pow(targetY - y, 2));
+            const steps = Math.ceil(dist / 20);
+            for (let i = 1; i < steps; i++) {
+                const t = i / steps;
+                const testX = x + (targetX - x) * t;
+                const testY = y + (targetY - y) * t;
+                for (const obs of obstacles) {
+                    const d = Math.sqrt(Math.pow(testX - obs.x, 2) + Math.pow(testY - obs.y, 2));
+                    if (d < obs.radius + 10) {
+                        return obs;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Find a path around buildings
+        function findPathAroundBuilding(enemy, targetX, targetY) {
+            // Check which building is blocking
+            for (const building of buildings) {
+                // If the line from enemy to target crosses through the building
+                if (lineIntersectsRect(enemy.x, enemy.y, targetX, targetY, building)) {
+                    // Find the best corner to go around
+                    const corners = [
+                        { x: building.x - 30, y: building.y - 30 },
+                        { x: building.x + building.width + 30, y: building.y - 30 },
+                        { x: building.x - 30, y: building.y + building.height + 30 },
+                        { x: building.x + building.width + 30, y: building.y + building.height + 30 }
+                    ];
+
+                    // Find corner that minimizes total distance
+                    let bestCorner = null;
+                    let bestDist = Infinity;
+                    for (const corner of corners) {
+                        const distToCorner = Math.sqrt(Math.pow(corner.x - enemy.x, 2) + Math.pow(corner.y - enemy.y, 2));
+                        const distFromCorner = Math.sqrt(Math.pow(targetX - corner.x, 2) + Math.pow(targetY - corner.y, 2));
+                        const totalDist = distToCorner + distFromCorner;
+                        if (totalDist < bestDist && !checkCollision(corner.x, corner.y, enemy.radius)) {
+                            bestDist = totalDist;
+                            bestCorner = corner;
+                        }
+                    }
+                    return bestCorner;
+                }
+            }
+            return null;
+        }
+
+        // Check if line intersects rectangle
+        function lineIntersectsRect(x1, y1, x2, y2, rect) {
+            // Simple bounding box check
+            const minX = Math.min(x1, x2);
+            const maxX = Math.max(x1, x2);
+            const minY = Math.min(y1, y2);
+            const maxY = Math.max(y1, y2);
+
+            // Check if line's bounding box overlaps with rect
+            if (maxX < rect.x || minX > rect.x + rect.width ||
+                maxY < rect.y || minY > rect.y + rect.height) {
+                return false;
+            }
+
+            // Check if line actually passes through
+            const steps = 10;
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const px = x1 + (x2 - x1) * t;
+                const py = y1 + (y2 - y1) * t;
+                if (px > rect.x && px < rect.x + rect.width &&
+                    py > rect.y && py < rect.y + rect.height) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         function updateEnemies(dt) {
             for (let i = enemies.length - 1; i >= 0; i--) {
                 const enemy = enemies[i];
@@ -1383,6 +1708,13 @@
                     aliveCount--;
                     document.getElementById('alive').textContent = aliveCount;
                     continue;
+                }
+
+                // Initialize pathfinding state
+                if (!enemy.pathTarget) {
+                    enemy.pathTarget = null;
+                    enemy.stuckCounter = 0;
+                    enemy.lastPos = { x: enemy.x, y: enemy.y };
                 }
 
                 // AI behavior
@@ -1439,38 +1771,44 @@
                     // Get weapon (or fists if unarmed)
                     const weapon = enemy.weapon ? WEAPONS[enemy.weapon] : WEAPONS['fists'];
 
-                    if (enemy.weapon) {
+                    // Check if melee weapon
+                    const isMelee = weapon.melee || false;
+
+                    if (enemy.weapon && !isMelee) {
                         // Shoot at player with gun
                         if (Date.now() - enemy.lastShot > weapon.fireRate && distToPlayer < weapon.range) {
-                            enemy.lastShot = Date.now();
-                            const spread = (Math.random() - 0.5) * weapon.spread * 8;
-                            const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x) + spread;
+                            // Only shoot if has line of sight
+                            if (hasLineOfSight(enemy.x, enemy.y, player.x, player.y)) {
+                                enemy.lastShot = Date.now();
+                                const spread = (Math.random() - 0.5) * weapon.spread * 8;
+                                const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x) + spread;
 
-                            for (let b = 0; b < weapon.bullets; b++) {
-                                const bulletSpread = (Math.random() - 0.5) * weapon.spread * 5;
-                                bullets.push({
-                                    x: enemy.x,
-                                    y: enemy.y,
-                                    vx: Math.cos(angle + bulletSpread) * weapon.speed * 0.8,
-                                    vy: Math.sin(angle + bulletSpread) * weapon.speed * 0.8,
-                                    damage: weapon.damage,
-                                    range: weapon.range,
-                                    traveled: 0,
-                                    owner: 'enemy'
-                                });
+                                for (let b = 0; b < weapon.bullets; b++) {
+                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 5;
+                                    bullets.push({
+                                        x: enemy.x,
+                                        y: enemy.y,
+                                        vx: Math.cos(angle + bulletSpread) * weapon.speed * 0.8,
+                                        vy: Math.sin(angle + bulletSpread) * weapon.speed * 0.8,
+                                        damage: weapon.damage,
+                                        range: weapon.range,
+                                        traveled: 0,
+                                        owner: 'enemy'
+                                    });
+                                }
                             }
                         }
 
-                        // Keep distance when armed
+                        // Keep distance when armed with ranged weapon
                         if (distToPlayer < 150) {
                             targetX = enemy.x - (player.x - enemy.x);
                             targetY = enemy.y - (player.y - enemy.y);
                         }
                     } else {
-                        // Melee attack with fists
+                        // Melee attack (fists or melee weapon)
                         if (distToPlayer < weapon.range && Date.now() - enemy.lastShot > weapon.fireRate) {
                             enemy.lastShot = Date.now();
-                            player.health -= weapon.damage * 0.5; // 50% damage reduction
+                            player.health -= weapon.damage * (player.armor || 0.5);
                             createDamageParticle(player.x, player.y);
                             updateHealthBar();
                             if (player.health <= 0) {
@@ -1487,10 +1825,88 @@
                 const dy = targetY - enemy.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist > 10) {
-                    const newX = enemy.x + (dx / dist) * enemy.speed;
-                    const newY = enemy.y + (dy / dist) * enemy.speed;
+                // Check if stuck
+                const movedDist = Math.sqrt(Math.pow(enemy.x - enemy.lastPos.x, 2) + Math.pow(enemy.y - enemy.lastPos.y, 2));
+                if (movedDist < 1 && dist > 20) {
+                    enemy.stuckCounter++;
+                } else {
+                    enemy.stuckCounter = 0;
+                }
+                enemy.lastPos = { x: enemy.x, y: enemy.y };
 
+                if (dist > 10) {
+                    let moveX = (dx / dist) * enemy.speed;
+                    let moveY = (dy / dist) * enemy.speed;
+                    let newX = enemy.x + moveX;
+                    let newY = enemy.y + moveY;
+
+                    // Check for direct path
+                    const canMoveDirect = !checkCollision(newX, newY, enemy.radius);
+
+                    if (!canMoveDirect || enemy.stuckCounter > 30) {
+                        // Try to find path around obstacles
+                        const pathPoint = findPathAroundBuilding(enemy, targetX, targetY);
+                        if (pathPoint) {
+                            enemy.pathTarget = pathPoint;
+                        }
+
+                        // Check for blocking obstacle to destroy
+                        const blockingObs = getBlockingObstacle(enemy.x, enemy.y, targetX, targetY);
+                        if (blockingObs && (blockingObs.type === 'crate' || blockingObs.type === 'tree')) {
+                            // Attack the obstacle to destroy it
+                            if (enemy.stuckCounter > 60) {
+                                blockingObs.health -= 5; // Damage obstacle
+                                enemy.stuckCounter = 30; // Reset partially
+                                createDamageParticle(blockingObs.x, blockingObs.y);
+                                if (blockingObs.health <= 0) {
+                                    const obsIndex = obstacles.indexOf(blockingObs);
+                                    if (obsIndex >= 0) {
+                                        if (blockingObs.type === 'crate') {
+                                            spawnLootAt(blockingObs.x, blockingObs.y);
+                                        }
+                                        obstacles.splice(obsIndex, 1);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Move towards path target if set
+                        if (enemy.pathTarget) {
+                            const pdx = enemy.pathTarget.x - enemy.x;
+                            const pdy = enemy.pathTarget.y - enemy.y;
+                            const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
+                            if (pdist < 30) {
+                                enemy.pathTarget = null; // Reached waypoint
+                            } else {
+                                moveX = (pdx / pdist) * enemy.speed;
+                                moveY = (pdy / pdist) * enemy.speed;
+                                newX = enemy.x + moveX;
+                                newY = enemy.y + moveY;
+                            }
+                        } else {
+                            // Try sliding along walls
+                            if (checkCollision(newX, enemy.y, enemy.radius)) {
+                                newX = enemy.x;
+                                // Try perpendicular movement
+                                if (!checkCollision(enemy.x, enemy.y + enemy.speed, enemy.radius)) {
+                                    newY = enemy.y + enemy.speed;
+                                } else if (!checkCollision(enemy.x, enemy.y - enemy.speed, enemy.radius)) {
+                                    newY = enemy.y - enemy.speed;
+                                }
+                            }
+                            if (checkCollision(enemy.x, newY, enemy.radius)) {
+                                newY = enemy.y;
+                                // Try perpendicular movement
+                                if (!checkCollision(enemy.x + enemy.speed, enemy.y, enemy.radius)) {
+                                    newX = enemy.x + enemy.speed;
+                                } else if (!checkCollision(enemy.x - enemy.speed, enemy.y, enemy.radius)) {
+                                    newX = enemy.x - enemy.speed;
+                                }
+                            }
+                        }
+                    }
+
+                    // Apply movement
                     if (!checkCollision(newX, enemy.y, enemy.radius)) {
                         enemy.x = newX;
                     }
@@ -1758,9 +2174,9 @@
                 ctx.fillRect(building.x, building.y, 10, building.height); // Left
                 ctx.fillRect(building.x + building.width - 10, building.y, 10, building.height); // Right
 
-                // Door
+                // Door (use building's doorWidth)
                 ctx.fillStyle = '#8B7355';
-                const doorSize = 40;
+                const doorSize = building.doorWidth || 60;
                 if (building.doorSide === 0) { // Top
                     ctx.fillRect(building.x + building.width / 2 - doorSize / 2, building.y, doorSize, 10);
                 } else if (building.doorSide === 1) { // Right
@@ -1769,6 +2185,28 @@
                     ctx.fillRect(building.x + building.width / 2 - doorSize / 2, building.y + building.height - 10, doorSize, 10);
                 } else { // Left
                     ctx.fillRect(building.x, building.y + building.height / 2 - doorSize / 2, 10, doorSize);
+                }
+            });
+
+            // Draw chests
+            chests.forEach(chest => {
+                if (chest.opened) {
+                    // Opened chest (darker, empty look)
+                    ctx.fillStyle = '#5a4a3a';
+                    ctx.fillRect(chest.x, chest.y, chest.width, chest.height);
+                    ctx.strokeStyle = '#3a2a1a';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(chest.x, chest.y, chest.width, chest.height);
+                } else {
+                    // Closed chest (golden)
+                    ctx.fillStyle = '#DAA520';
+                    ctx.fillRect(chest.x, chest.y, chest.width, chest.height);
+                    ctx.strokeStyle = '#8B6914';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(chest.x, chest.y, chest.width, chest.height);
+                    // Chest lock
+                    ctx.fillStyle = '#FFD700';
+                    ctx.fillRect(chest.x + chest.width/2 - 4, chest.y + chest.height/2 - 3, 8, 6);
                 }
             });
 
@@ -1831,6 +2269,46 @@
                 ctx.arc(p.x, p.y, p.radius * (p.type === 'flash' ? (1 - alpha) * 2 + 0.5 : 1), 0, Math.PI * 2);
                 ctx.fill();
                 ctx.globalAlpha = 1;
+            });
+
+            // Draw fire zones
+            fireZones.forEach(fire => {
+                const alpha = Math.min(1, fire.life / 1000);
+                ctx.fillStyle = `rgba(255, 69, 0, ${alpha * 0.5})`;
+                ctx.beginPath();
+                ctx.arc(fire.x, fire.y, fire.radius, 0, Math.PI * 2);
+                ctx.fill();
+                // Flickering fire effect
+                for (let i = 0; i < 5; i++) {
+                    const flameX = fire.x + (Math.random() - 0.5) * fire.radius * 1.5;
+                    const flameY = fire.y + (Math.random() - 0.5) * fire.radius * 1.5;
+                    const flameRadius = 10 + Math.random() * 20;
+                    ctx.fillStyle = `rgba(255, ${100 + Math.random() * 100}, 0, ${alpha * 0.7})`;
+                    ctx.beginPath();
+                    ctx.arc(flameX, flameY, flameRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            // Draw smoke zones
+            smokeZones.forEach(smoke => {
+                const alpha = Math.min(0.6, smoke.life / 2000);
+                ctx.fillStyle = `rgba(128, 128, 128, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(smoke.x, smoke.y, smoke.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw thrown grenades
+            thrownGrenades.forEach(g => {
+                const grenade = GRENADES[g.type];
+                ctx.fillStyle = grenade.color;
+                ctx.beginPath();
+                ctx.arc(g.x, g.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.stroke();
             });
 
             // Draw bullets
@@ -2017,6 +2495,7 @@
                 updatePlayer(dt);
                 updateEnemies(dt);
                 updateBullets(dt);
+                updateGrenades(dt);
                 updateParticles(dt);
                 updateZone(dt);
                 updateLeaderboard();
