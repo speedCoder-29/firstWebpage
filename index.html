@@ -588,10 +588,9 @@
             // For fleeing detection (used by enemies to target players who are running back into the safe zone)
             lastPos: { x: MAP_SIZE / 2, y: MAP_SIZE / 2 },
             isFleeing: false,
-            // Recoil state
+            // Recoil state (slows movement while firing)
             recoil: 0,
-            recoilAngle: 0,
-            recoilRecovery: 6
+            recoilRecovery: 0.08
         };
 
         // Input
@@ -1647,15 +1646,14 @@
             // Apply damage multiplier from upgrades
             const effectiveDamage = weapon.damage * (player.damageMultiplier || 1);
 
-            // Get weapon recoil (default to 0.05 if not specified)
-            const weaponRecoil = weapon.recoil || 0.05;
+            // Get weapon recoil (default to 0.3 - slows player by 30% per shot, stacks up)
+            const weaponRecoil = weapon.recoil || 0.3;
 
-            // Create bullets with recoil applied
+            // Create bullets - aim is not affected by recoil
             for (let i = 0; i < weapon.bullets; i++) {
-                // Apply weapon spread + current recoil offset
+                // Only apply weapon spread, no aim deviation
                 const spread = (Math.random() - 0.5) * weapon.spread;
-                const recoilOffset = (player.recoilAngle || 0);
-                const angle = player.angle + spread + recoilOffset;
+                const angle = player.angle + spread;
 
                 if (weapon.speed === 0) {
                     // Melee attack
@@ -1675,10 +1673,8 @@
                 }
             }
 
-            // Apply recoil after shooting (random kick, no directional bias)
-            player.recoil = Math.min(1, (player.recoil || 0) + weaponRecoil);
-            // Random kick in either direction, centered around 0
-            player.recoilAngle = (player.recoilAngle || 0) + (Math.random() - 0.5) * weaponRecoil;
+            // Apply recoil - slows player down while firing
+            player.recoil = Math.min(0.8, (player.recoil || 0) + weaponRecoil * 0.15);
 
             // Muzzle flash (only for guns)
             if (weapon.speed > 0) {
@@ -1747,17 +1743,14 @@
         }
 
         function updatePlayer(dt) {
-            // Decay recoil over time (recover aim accuracy)
+            // Decay recoil over time (recover movement speed)
             player.recoil = Math.max(0, (player.recoil || 0) - player.recoilRecovery * dt / 16.67);
-            player.recoilAngle = (player.recoilAngle || 0) * Math.pow(0.9, dt / 16.67);
-            // Snap very small recoil angles to 0 to prevent drift
-            if (Math.abs(player.recoilAngle) < 0.001) player.recoilAngle = 0;
 
             // Calculate angle to mouse - player is always at center of screen
             // so angle is simply from screen center to mouse position
             player.angle = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
 
-            // Movement
+            // Movement - slowed by recoil
             let dx = 0, dy = 0;
             if (keys['w']) dy -= 1;
             if (keys['s']) dy += 1;
@@ -1769,8 +1762,12 @@
                 dx /= len;
                 dy /= len;
 
-                const newX = player.x + dx * player.speed;
-                const newY = player.y + dy * player.speed;
+                // Apply recoil slowdown (recoil of 0.8 = 80% slower)
+                const recoilSlowdown = 1 - (player.recoil || 0);
+                const currentSpeed = player.speed * recoilSlowdown;
+
+                const newX = player.x + dx * currentSpeed;
+                const newY = player.y + dy * currentSpeed;
 
                 // Collision check
                 if (!checkCollision(newX, player.y, player.radius)) {
