@@ -1680,10 +1680,10 @@
 
             // Apply recoil to the player (angle offset + slight backward kick)
             const recoilAmt = weapon.recoil || 0;
-            player.recoil = (player.recoil || 0) + recoilAmt;
-            // Tend to push aim away from target slightly (negative to push 'up' relative to shot)
-            const recoilAngleDelta = -(Math.abs(recoilAmt) * 0.02) + (Math.random() - 0.5) * recoilAmt * 0.01;
-            player.recoilAngle += recoilAngleDelta;
+            player.recoil = (player.recoil || 0) + recoilAmt * 0.5;
+            // Smaller recoil angle effect - reduced by 50%
+            const recoilAngleDelta = -(Math.abs(recoilAmt) * 0.008) + (Math.random() - 0.5) * recoilAmt * 0.004;
+            player.recoilAngle = (player.recoilAngle || 0) + recoilAngleDelta;
 
             // Slight backward displacement (respecting collisions)
             const kick = (weapon.recoilKick !== undefined) ? weapon.recoilKick : recoilAmt * 0.3;
@@ -1754,6 +1754,12 @@
         }
 
         function updatePlayer(dt) {
+            // Decay recoil over time (recover aim accuracy)
+            player.recoil = Math.max(0, (player.recoil || 0) - 5 * dt / 16.67);
+            player.recoilAngle = (player.recoilAngle || 0) * Math.pow(0.85, dt / 16.67);
+            // Snap very small recoil angles to 0 to prevent drift
+            if (Math.abs(player.recoilAngle) < 0.001) player.recoilAngle = 0;
+
             // Calculate angle to mouse
             const worldMouseX = mouse.x - canvas.width / 2 + camera.x;
             const worldMouseY = mouse.y - canvas.height / 2 + camera.y;
