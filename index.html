@@ -613,7 +613,7 @@
         let killMessages = [];
         let airStrikes = []; // Active air strike zones
         let airStrikeWarnings = []; // Warning indicators before strike
-        let nextAirStrikeTime = 60000; // First air strike after 60 seconds
+        let nextAirStrikeTime = 20000; // First air strike after 20 seconds
         let lastAirStrikeCheck = 0;
 
         // Building templates
@@ -1427,11 +1427,11 @@
         function updateAirStrikes(dt) {
             // Check if it's time for a new air strike
             lastAirStrikeCheck += dt;
-            if (lastAirStrikeCheck >= nextAirStrikeTime && gameTime > 60) {
+            if (lastAirStrikeCheck >= nextAirStrikeTime) {
                 // Trigger air strike warning
                 triggerAirStrike();
                 lastAirStrikeCheck = 0;
-                nextAirStrikeTime = 30000 + Math.random() * 30000; // 30-60 seconds between strikes
+                nextAirStrikeTime = 20000; // 20 seconds between strikes
             }
 
             // Update warning phase
@@ -1647,21 +1647,19 @@
             // Apply damage multiplier from upgrades
             const effectiveDamage = weapon.damage * (player.damageMultiplier || 1);
 
-            // Create bullets
+            // Create bullets - shoot directly at mouse cursor
             for (let i = 0; i < weapon.bullets; i++) {
-                // Additional spread from accumulated recoil
-                const extraSpread = (player.recoil || 0) * 0.005;
-                const spread = (Math.random() - 0.5) * (weapon.spread * 2 + extraSpread);
-                // Apply current recoilAngle (aim offset) to shot
-                const angle = player.angle + player.recoilAngle + spread;
+                // Only apply weapon spread, no recoil
+                const spread = (Math.random() - 0.5) * weapon.spread;
+                const angle = player.angle + spread;
 
                 if (weapon.speed === 0) {
                     // Melee attack
                     checkMeleeHit(player.x, player.y, player.angle, weapon.range, effectiveDamage);
                 } else {
                     bullets.push({
-                        x: player.x + Math.cos(player.angle + player.recoilAngle) * 30,
-                        y: player.y + Math.sin(player.angle + player.recoilAngle) * 30,
+                        x: player.x + Math.cos(player.angle) * 30,
+                        y: player.y + Math.sin(player.angle) * 30,
                         vx: Math.cos(angle) * weapon.speed,
                         vy: Math.sin(angle) * weapon.speed,
                         damage: effectiveDamage,
@@ -1673,24 +1671,10 @@
                 }
             }
 
-            // Muzzle flash (only for guns) - use recoil-affected angle for visual kick
+            // Muzzle flash (only for guns)
             if (weapon.speed > 0) {
-                createMuzzleFlash(player.x + Math.cos(player.angle + player.recoilAngle) * 35, player.y + Math.sin(player.angle + player.recoilAngle) * 35);
+                createMuzzleFlash(player.x + Math.cos(player.angle) * 35, player.y + Math.sin(player.angle) * 35);
             }
-
-            // Apply recoil to the player (angle offset + slight backward kick)
-            const recoilAmt = weapon.recoil || 0;
-            player.recoil = (player.recoil || 0) + recoilAmt;
-            // Tend to push aim away from target slightly (negative to push 'up' relative to shot)
-            const recoilAngleDelta = -(Math.abs(recoilAmt) * 0.02) + (Math.random() - 0.5) * recoilAmt * 0.01;
-            player.recoilAngle += recoilAngleDelta;
-
-            // Slight backward displacement (respecting collisions)
-            const kick = (weapon.recoilKick !== undefined) ? weapon.recoilKick : recoilAmt * 0.3;
-            const newX = player.x - Math.cos(player.angle) * kick;
-            const newY = player.y - Math.sin(player.angle) * kick;
-            if (!checkCollision(newX, player.y, player.radius)) player.x = newX;
-            if (!checkCollision(player.x, newY, player.radius)) player.y = newY;
         }
 
         function checkMeleeHit(x, y, angle, range, damage) {
@@ -1754,10 +1738,9 @@
         }
 
         function updatePlayer(dt) {
-            // Calculate angle to mouse
-            const worldMouseX = mouse.x - canvas.width / 2 + camera.x;
-            const worldMouseY = mouse.y - canvas.height / 2 + camera.y;
-            player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
+            // Calculate angle to mouse - player is always at center of screen
+            // so angle is simply from screen center to mouse position
+            player.angle = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
 
             // Movement
             let dx = 0, dy = 0;
@@ -2973,7 +2956,27 @@
                 ctx.stroke();
             }
 
+            // Draw aim line (debug/visual aid)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y);
+            ctx.lineTo(player.x + Math.cos(player.angle) * 200, player.y + Math.sin(player.angle) * 200);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
             ctx.restore();
+
+            // Draw crosshair at mouse position (screen space)
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(mouse.x - 10, mouse.y);
+            ctx.lineTo(mouse.x + 10, mouse.y);
+            ctx.moveTo(mouse.x, mouse.y - 10);
+            ctx.lineTo(mouse.x, mouse.y + 10);
+            ctx.stroke();
 
             // Draw minimap
             renderMinimap();
