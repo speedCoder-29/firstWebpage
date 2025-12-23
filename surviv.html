@@ -2084,6 +2084,9 @@
                 enemy.recoil = Math.max(0, (enemy.recoil || 0) - (enemy.recoilRecovery || 4) * dt);
                 enemy.recoilAngle *= Math.pow(0.6, dt * 60);
 
+                // Passive health regeneration (5 HP per second)
+                enemy.health = Math.min(enemy.maxHealth || 100, enemy.health + 5 * dt / 1000);
+
                 // AI behavior
                 const distToPlayer = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
                 const distToZone = Math.sqrt(Math.pow(zone.x - enemy.x, 2) + Math.pow(zone.y - enemy.y, 2));
