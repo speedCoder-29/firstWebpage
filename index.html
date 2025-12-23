@@ -1544,19 +1544,41 @@
             const recoilAngleDelta = -(Math.abs(recoilAmt) * 0.02) + (Math.random() - 0.5) * recoilAmt * 0.01;
             player.recoilAngle += recoilAngleDelta;
 
-            // Apply positional backward kick: reduced when moving, small kick when stationary
-            const isMoving = keys['w'] || keys['a'] || keys['s'] || keys['d'];
-            const baseKick = (weapon.recoilKick !== undefined) ? weapon.recoilKick : recoilAmt * 0.3;
+            // Apply directional positional kick: forward if moving backwards, reduced backward when moving forward, small backward when stationary
+            // Determine movement vector from keys
+            let mvx = 0, mvy = 0;
+            if (keys['w']) mvy -= 1;
+            if (keys['s']) mvy += 1;
+            if (keys['a']) mvx -= 1;
+            if (keys['d']) mvx += 1;
+            const isMoving = (mvx !== 0 || mvy !== 0);
+            let dot = 0;
             if (isMoving) {
-                const kick = baseKick * 0.35; // reduced backward kick when moving
-                const newX = player.x - Math.cos(player.angle) * kick;
-                const newY = player.y - Math.sin(player.angle) * kick;
+                const mlen = Math.sqrt(mvx * mvx + mvy * mvy);
+                mvx /= mlen; mvy /= mlen;
+                dot = mvx * Math.cos(player.angle) + mvy * Math.sin(player.angle);
+            }
+
+            const baseKick = (weapon.recoilKick !== undefined) ? weapon.recoilKick : recoilAmt * 0.3;
+            if (isMoving && dot < -0.1) {
+                // Player is moving backwards relative to facing: recoil should push forward
+                const k = baseKick * 0.35; // same magnitude as moving kick but forward
+                const newX = player.x + Math.cos(player.angle) * k;
+                const newY = player.y + Math.sin(player.angle) * k;
+                if (!checkCollision(newX, player.y, player.radius)) player.x = newX;
+                if (!checkCollision(player.x, newY, player.radius)) player.y = newY;
+            } else if (isMoving) {
+                // Moving (not backwards) -> reduced backward kick
+                const k = baseKick * 0.35;
+                const newX = player.x - Math.cos(player.angle) * k;
+                const newY = player.y - Math.sin(player.angle) * k;
                 if (!checkCollision(newX, player.y, player.radius)) player.x = newX;
                 if (!checkCollision(player.x, newY, player.radius)) player.y = newY;
             } else {
-                const kick = baseKick * 0.12; // small kick when stationary (12% of base)
-                const newX = player.x - Math.cos(player.angle) * kick;
-                const newY = player.y - Math.sin(player.angle) * kick;
+                // Stationary -> small backward kick
+                const k = baseKick * 0.12;
+                const newX = player.x - Math.cos(player.angle) * k;
+                const newY = player.y - Math.sin(player.angle) * k;
                 if (!checkCollision(newX, player.y, player.radius)) player.x = newX;
                 if (!checkCollision(player.x, newY, player.radius)) player.y = newY;
             }
