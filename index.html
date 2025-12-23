@@ -1651,9 +1651,9 @@
 
             // Create bullets - aim is not affected by recoil
             for (let i = 0; i < weapon.bullets; i++) {
-                // Only apply weapon spread, no aim deviation
-                const spread =  weapon.spread * 2;
-                const angle = player.angle;
+                // Apply random spread based on weapon's spread value
+                const spread = (Math.random() - 0.5) * weapon.spread;
+                const angle = player.angle + spread;
 
                 if (weapon.speed === 0) {
                     // Melee attack
@@ -1668,7 +1668,8 @@
                         range: weapon.range,
                         traveled: 0,
                         owner: 'player',
-                        trail: []
+                        trail: [],
+                        bounces: 0
                     });
                 }
             }
@@ -2425,6 +2426,87 @@
                 if (bullet.x < 0 || bullet.x > MAP_SIZE || bullet.y < 0 || bullet.y > MAP_SIZE) {
                     bullets.splice(i, 1);
                     continue;
+                }
+
+                // Hit building walls (stop bullets)
+                let hitWall = false;
+                for (const building of buildings) {
+                    // Check if bullet is inside building walls (not in door openings)
+                    if (bullet.x > building.x && bullet.x < building.x + building.width &&
+                        bullet.y > building.y && bullet.y < building.y + building.height) {
+                        // Check if in interior (not wall)
+                        const wallThickness = 15;
+                        const inInterior = bullet.x > building.x + wallThickness &&
+                                          bullet.x < building.x + building.width - wallThickness &&
+                                          bullet.y > building.y + wallThickness &&
+                                          bullet.y < building.y + building.height - wallThickness;
+
+                        if (!inInterior) {
+                            // Check door openings
+                            let inDoor = false;
+                            for (const door of building.doors) {
+                                if (door.side === 'top' || door.side === 'bottom') {
+                                    const doorX = building.x + door.offset;
+                                    const doorY = door.side === 'top' ? building.y : building.y + building.height - wallThickness;
+                                    if (bullet.x > doorX && bullet.x < doorX + door.width &&
+                                        bullet.y > doorY && bullet.y < doorY + wallThickness) {
+                                        inDoor = true;
+                                        break;
+                                    }
+                                } else {
+                                    const doorX = door.side === 'left' ? building.x : building.x + building.width - wallThickness;
+                                    const doorY = building.y + door.offset;
+                                    if (bullet.x > doorX && bullet.x < doorX + wallThickness &&
+                                        bullet.y > doorY && bullet.y < doorY + door.width) {
+                                        inDoor = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!inDoor) {
+                                hitWall = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (hitWall) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Hit bunker walls (reflect bullets)
+                for (const bunker of bunkers) {
+                    // Check underground room walls
+                    if (bullet.x > bunker.x && bullet.x < bunker.x + bunker.width &&
+                        bullet.y > bunker.y && bullet.y < bunker.y + bunker.height) {
+                        const wallThickness = 15;
+                        const inInterior = bullet.x > bunker.x + wallThickness &&
+                                          bullet.x < bunker.x + bunker.width - wallThickness &&
+                                          bullet.y > bunker.y + wallThickness &&
+                                          bullet.y < bunker.y + bunker.height - wallThickness;
+
+                        if (!inInterior && (bullet.bounces || 0) < 3) {
+                            // Determine which wall was hit and reflect
+                            const distLeft = bullet.x - bunker.x;
+                            const distRight = bunker.x + bunker.width - bullet.x;
+                            const distTop = bullet.y - bunker.y;
+                            const distBottom = bunker.y + bunker.height - bullet.y;
+
+                            const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+
+                            if (minDist === distLeft || minDist === distRight) {
+                                bullet.vx = -bullet.vx; // Reflect horizontally
+                            } else {
+                                bullet.vy = -bullet.vy; // Reflect vertically
+                            }
+
+                            bullet.bounces = (bullet.bounces || 0) + 1;
+                            // Move bullet out of wall
+                            bullet.x += bullet.vx * 2;
+                            bullet.y += bullet.vy * 2;
+                        }
+                    }
                 }
 
                 // Hit obstacles
