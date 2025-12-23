@@ -1675,7 +1675,7 @@
             }
 
             // Apply recoil - slows player down while firing
-            player.recoil = Math.min(0.8, (player.recoil || 0) + weaponRecoil * 0.15);
+            player.recoil = Math.min(0.9, (player.recoil || 0) + weaponRecoil * 0.4);
 
             // Muzzle flash (only for guns)
             if (weapon.speed > 0) {
