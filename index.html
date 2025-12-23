@@ -597,6 +597,149 @@
         let keys = {};
         let mouse = { x: 0, y: 0, down: false };
 
+        // Audio context for sound effects
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Sound effect generator
+        function playSound(type, volume = 0.3) {
+            if (!audioCtx) return;
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+            gainNode.gain.setValueAtTime(volume, now);
+
+            switch(type) {
+                case 'shoot':
+                    // Gunshot - short noise burst
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(150, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.1);
+                    break;
+
+                case 'shotgun':
+                    // Shotgun - deeper boom
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(80, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(30, now + 0.15);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.15);
+                    break;
+
+                case 'sniper':
+                    // Sniper - sharp crack
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(400, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(60, now + 0.2);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.2);
+                    break;
+
+                case 'hit':
+                    // Hit marker sound
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(800, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.05);
+                    break;
+
+                case 'kill':
+                    // Kill sound - satisfying ding
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(880, now);
+                    gainNode.gain.setValueAtTime(0.4, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.3);
+                    break;
+
+                case 'pickup':
+                    // Item pickup
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(440, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.1);
+                    break;
+
+                case 'reload':
+                    // Reload click
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(200, now);
+                    oscillator.frequency.setValueAtTime(300, now + 0.05);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.1);
+                    break;
+
+                case 'hurt':
+                    // Player hurt
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(200, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.15);
+                    break;
+
+                case 'explosion':
+                    // Explosion/grenade
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(100, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(20, now + 0.4);
+                    gainNode.gain.setValueAtTime(0.5, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.4);
+                    break;
+
+                case 'empty':
+                    // Empty clip click
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(100, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.03);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.03);
+                    break;
+
+                case 'chest':
+                    // Chest open
+                    oscillator.type = 'triangle';
+                    oscillator.frequency.setValueAtTime(300, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.2);
+                    break;
+
+                case 'melee':
+                    // Melee swing
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(300, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.08);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.08);
+                    break;
+            }
+        }
+
         // Game objects
         let bullets = [];
         let enemies = [];
@@ -1172,6 +1315,7 @@
 
             player.reloading = true;
             player.reloadStart = Date.now();
+            playSound('reload', 0.2);
         }
 
         function pickupLoot() {
@@ -1227,6 +1371,7 @@
                         updateGrenadeUI();
                     }
                     loot.splice(i, 1);
+                    playSound('pickup', 0.25);
                     break;
                 }
             }
@@ -1247,6 +1392,7 @@
 
         function openChest(chest) {
             chest.opened = true;
+            playSound('chest', 0.3);
             // Bunker chests give more and better items
             const numItems = chest.isBunkerChest ? (3 + Math.floor(Math.random() * 2)) : (2 + Math.floor(Math.random() * 2));
             for (let i = 0; i < numItems; i++) {
@@ -1544,6 +1690,7 @@
 
         function explodeGrenade(g, index) {
             const grenade = GRENADES[g.type];
+            playSound('explosion', 0.4);
 
             if (grenade.fire) {
                 // Molotov creates fire zone
@@ -1677,9 +1824,20 @@
             // Apply recoil - slows player down while firing
             player.recoil = Math.min(0.9, (player.recoil || 0) + weaponRecoil * 0.4);
 
-            // Muzzle flash (only for guns)
+            // Muzzle flash and sound (only for guns)
             if (weapon.speed > 0) {
                 createMuzzleFlash(player.x + Math.cos(player.angle) * 35, player.y + Math.sin(player.angle) * 35);
+                // Play appropriate gun sound
+                if (weaponKey && weaponKey.includes('shotgun')) {
+                    playSound('shotgun', 0.25);
+                } else if (weaponKey && (weaponKey.includes('sniper') || weaponKey === 'mosin' || weaponKey === 'sv98')) {
+                    playSound('sniper', 0.25);
+                } else {
+                    playSound('shoot', 0.2);
+                }
+            } else {
+                // Melee sound
+                playSound('melee', 0.2);
             }
         }
 
@@ -2431,7 +2589,7 @@
                 // Hit building walls (stop bullets)
                 let hitWall = false;
                 for (const building of buildings) {
-                    // Check if bullet is inside building walls (not in door openings)
+                    // Check if bullet is inside building bounds
                     if (bullet.x > building.x && bullet.x < building.x + building.width &&
                         bullet.y > building.y && bullet.y < building.y + building.height) {
                         // Check if in interior (not wall)
@@ -2442,24 +2600,26 @@
                                           bullet.y < building.y + building.height - wallThickness;
 
                         if (!inInterior) {
-                            // Check door openings
+                            // Check door openings if building has doors
                             let inDoor = false;
-                            for (const door of building.doors) {
-                                if (door.side === 'top' || door.side === 'bottom') {
-                                    const doorX = building.x + door.offset;
-                                    const doorY = door.side === 'top' ? building.y : building.y + building.height - wallThickness;
-                                    if (bullet.x > doorX && bullet.x < doorX + door.width &&
-                                        bullet.y > doorY && bullet.y < doorY + wallThickness) {
-                                        inDoor = true;
-                                        break;
-                                    }
-                                } else {
-                                    const doorX = door.side === 'left' ? building.x : building.x + building.width - wallThickness;
-                                    const doorY = building.y + door.offset;
-                                    if (bullet.x > doorX && bullet.x < doorX + wallThickness &&
-                                        bullet.y > doorY && bullet.y < doorY + door.width) {
-                                        inDoor = true;
-                                        break;
+                            if (building.doors && building.doors.length > 0) {
+                                for (const door of building.doors) {
+                                    if (door.side === 'top' || door.side === 'bottom') {
+                                        const doorX = building.x + door.offset;
+                                        const doorY = door.side === 'top' ? building.y : building.y + building.height - wallThickness;
+                                        if (bullet.x > doorX && bullet.x < doorX + door.width &&
+                                            bullet.y > doorY && bullet.y < doorY + wallThickness) {
+                                            inDoor = true;
+                                            break;
+                                        }
+                                    } else {
+                                        const doorX = door.side === 'left' ? building.x : building.x + building.width - wallThickness;
+                                        const doorY = building.y + door.offset;
+                                        if (bullet.x > doorX && bullet.x < doorX + wallThickness &&
+                                            bullet.y > doorY && bullet.y < doorY + door.width) {
+                                            inDoor = true;
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -2537,6 +2697,7 @@
                         createDamageParticle(player.x, player.y);
                         updateHealthBar();
                         bullets.splice(i, 1);
+                        playSound('hurt', 0.3);
 
                         if (player.health <= 0) {
                             endGame(false);
@@ -2553,6 +2714,7 @@
                             enemy.health -= bullet.damage;
                             createDamageParticle(enemy.x, enemy.y);
                             bullets.splice(i, 1);
+                            playSound('hit', 0.2);
 
                             if (enemy.health <= 0) {
                                 kills++;
@@ -2562,6 +2724,7 @@
                                 player.health = player.maxHealth;
                                 updateHealthBar();
                                 checkForUpgrade();
+                                playSound('kill', 0.3);
                             }
                             break;
                         }
