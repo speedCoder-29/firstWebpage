@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Joke Generator 😂</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            transition: background-color 0.5s ease;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 500px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        #joke {
+            font-size: 1.2em;
+            color: #555;
+            min-height: 60px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+        button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+        .emoji-bg {
+            position: fixed;
+            font-size: 40px;
+            opacity: 0.3;
+            pointer-events: none;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 Random Joke Generator 😂</h1>
+        <p id="joke">👆 Click the button to get a joke! 👆</p>
+        <button onclick="showRandomJoke()">🎲 Tell Me a Joke 🎲</button>
+    </div>
+
+    <script>
+        const jokes = [
+            // Classic Jokes
+            "🔬 Why don't scientists trust atoms? Because they make up everything! 🤥",
+            "🌾 Why did the scarecrow win an award? He was outstanding in his field! 🏆",
+            "🥚 Why don't eggs tell jokes? They'd crack each other up! 😂",
+            "🍝 What do you call a fake noodle? An impasta! 🎭",
+            "🚲 Why did the bicycle fall over? Because it was two-tired! 😴",
+            "🐻 What do you call a bear with no teeth? A gummy bear! 🍬",
+            "❄️ Why can't you give Elsa a balloon? Because she will let it go! 🎈",
+            "🐟 What do you call a fish without eyes? A fsh! 👀",
+            "💀 Why don't skeletons fight each other? They don't have the guts! 😱",
+            "🦕 What do you call a sleeping dinosaur? A dino-snore! 💤",
+            "🌙 Why did the moon skip dinner? Because it was full! 🍽️",
+            "📚 Why did the math book look sad? It had too many problems! 😢",
+            "🎸 What do you call a musical insect? A humbug! 🐛",
+            "🧀 What cheese can never be yours? Nacho cheese! 😋",
+            "⏰ Why did the clock get kicked out of class? It kept tocking too much! 🗣️",
+            "🌊 What did the ocean say to the beach? Nothing, it just waved! 👋",
+            "🍕 Want to hear a pizza joke? Never mind, it's too cheesy! 🧀",
+            "🐘 What do you call an elephant that doesn't matter? An irrelephant! 🤷",
+            "☕ How does Moses make his coffee? Hebrews it! ✡️",
+            "🎹 Why did the piano break up with the accordion? It was too squeezey! 💔",
+            "🦆 What do you call a duck that steals? A robber ducky! 🔫",
+            "🍌 Why did the banana go to the doctor? It wasn't peeling well! 🏥",
+            "🐙 Why are octopuses good at war? They're well armed! 💪",
+            "🧲 What did the magnet say to the other magnet? I find you very attractive! 😍",
+            "🎃 What's a pumpkin's favorite sport? Squash! 🎾",
+            "🦷 What did the tooth say to the dentist? Fill me in! 🔧",
+            "🐝 Why do bees have sticky hair? Because they use honeycombs! 🍯",
+            "🎂 What do you say to a birthday cake? You want a piece of me?! 🥊",
+            "🐔 Why did the chicken join a band? Because it had drumsticks! 🥁",
+            "🌭 What do you call a hot dog in winter? A chili dog! 🥶",
+            // More Jokes
+            "🦩 What do you call a flamingo at the North Pole? Lost! 🧭",
+            "🎨 Why was the artist afraid? Because he was framed! 🖼️",
+            "🧹 Why did the broom go to bed? It was sweepy! 😴",
+            "🍋 What did the lemon say to the lime? Sour you doing? 😏",
+            "🦁 What do you call a lazy kangaroo? A pouch potato! 🥔",
+            "🎤 Why did the singer climb a ladder? To reach the high notes! 🎵",
+            "🧊 What do you call a snowman with a six-pack? An abdominal snowman! ☃️",
+            "🦊 What do you call a fox that's good at math? A calculator! 🔢",
+            "🍪 Why did the cookie go to the hospital? Because it felt crummy! 🏥",
+            "🐢 What do you call a turtle that flies? A shell-icopter! 🚁",
+            "🎭 Why don't scientists trust stairs? Because they're always up to something! 🤔",
+            "🦜 What do you call a parrot that flew away? A polygon! 📐",
+            "🍩 Why did the donut go to the dentist? To get a filling! 🦷",
+            "🐧 What do you call a penguin in the desert? Lost! 🏜️",
+            "🎪 Why did the clown go to the doctor? He was feeling a little funny! 🤡",
+            "🦋 What do you call a butterfly that's also a boxer? Muhammad Al-fly! 🥊",
+            "🍔 Why did the hamburger go to the gym? To get better buns! 💪",
+            "🐸 What do you call a frog with no legs? Unhoppy! 😢",
+            "🎯 Why did the target break up with the arrow? It felt too pointed! 💔",
+            "🦈 What do sharks say when something cool happens? Jawesome! 😎",
+            // Riddles
+            "🤔 RIDDLE: What has hands but can't clap? A clock! ⏰",
+            "🤔 RIDDLE: What has a head and a tail but no body? A coin! 🪙",
+            "🤔 RIDDLE: What can you catch but not throw? A cold! 🤧",
+            "🤔 RIDDLE: What gets wetter the more it dries? A towel! 🛁",
+            "🤔 RIDDLE: What has keys but no locks? A piano! 🎹",
+            "🤔 RIDDLE: What can travel around the world while staying in a corner? A stamp! 📮",
+            "🤔 RIDDLE: What has a neck but no head? A bottle! 🍾",
+            "🤔 RIDDLE: What has words but never speaks? A book! 📖",
+            "🤔 RIDDLE: What runs but never walks? Water! 💧",
+            "🤔 RIDDLE: What has teeth but cannot bite? A comb! 💇",
+            "🤔 RIDDLE: What goes up but never comes down? Your age! 🎂",
+            "🤔 RIDDLE: What can fill a room but takes up no space? Light! 💡",
+            "🤔 RIDDLE: What has one eye but cannot see? A needle! 🪡",
+            "🤔 RIDDLE: What is full of holes but still holds water? A sponge! 🧽",
+            "🤔 RIDDLE: What building has the most stories? A library! 📚",
+            "🤔 RIDDLE: What can you break without touching it? A promise! 💔",
+            "🤔 RIDDLE: What has legs but doesn't walk? A table! 🪑",
+            "🤔 RIDDLE: What has ears but cannot hear? Corn! 🌽",
+            "🤔 RIDDLE: What begins with T, ends with T, and has T in it? A teapot! 🫖",
+            "🤔 RIDDLE: What is always in front of you but can't be seen? The future! 🔮",
+            // Even More Jokes
+            "🐍 Why don't snakes drink coffee? It makes them viperactive! ☕",
+            "🦉 Why don't owls make good comedians? Their jokes are too hooo-morous! 😂",
+            "🍦 What do you call a cow with no legs? Ground beef! 🐄",
+            "🎳 Why was the bowling alley so quiet? You could hear a pin drop! 📍",
+            "🦔 What do you call a hedgehog with sunglasses? Cool and prickly! 😎",
+            "🍇 What did the grape do when it got stepped on? It let out a little wine! 🍷",
+            "🐊 What do you call an alligator in a vest? An investigator! 🔍",
+            "🎺 Why did the music teacher go to jail? For getting in treble! 🎵",
+            "🦒 Why do giraffes have long necks? Because their feet smell! 👃",
+            "🍿 Why did the popcorn go to the movies? Because it was feeling corny! 🎬",
+            "🐕 What do you call a dog magician? A Labracadabrador! ✨",
+            "🏠 Why did the house go to the doctor? It had window panes! 🩺",
+            "🌮 Why did the taco go to therapy? It had a lot of fillings to work through! 💭",
+            "🐨 What do you call a lazy koala? A pouch potato! 🥔",
+            "🎸 What's a guitar's favorite food? Jam sessions! 🍓",
+            "🦀 Why don't crabs share? Because they're shellfish! 🦐",
+            "🌈 What did one rainbow say to the other? Nothing, they just waved! 👋",
+            "🐋 What do whales eat for dinner? Fish and ships! 🚢",
+            "🎩 Why did the magician get good grades? He was great at trick questions! ✨",
+            "🍭 What do you call candy that was stolen? Hot chocolate! 🍫"
+        ];
+
+        const backgrounds = [
+            { color: '#FFE4E1', emoji: '😂' },
+            { color: '#E0FFE0', emoji: '🌿' },
+            { color: '#E0E0FF', emoji: '💜' },
+            { color: '#FFFACD', emoji: '🌟' },
+            { color: '#FFE4B5', emoji: '🍊' },
+            { color: '#E6E6FA', emoji: '🪻' },
+            { color: '#F0FFF0', emoji: '🍀' },
+            { color: '#FFF0F5', emoji: '🌸' },
+            { color: '#F5FFFA', emoji: '🌊' },
+            { color: '#FFEFD5', emoji: '🎉' },
+            { color: '#E0FFFF', emoji: '❄️' },
+            { color: '#FAFAD2', emoji: '☀️' },
+            { color: '#FFB6C1', emoji: '💕' },
+            { color: '#98FB98', emoji: '🐸' },
+            { color: '#DDA0DD', emoji: '🦄' }
+        ];
+
+        let floatingEmojis = [];
+
+        function clearFloatingEmojis() {
+            floatingEmojis.forEach(el => el.remove());
+            floatingEmojis = [];
+        }
+
+        function createFloatingEmojis(emoji) {
+            clearFloatingEmojis();
+            for (let i = 0; i < 8; i++) {
+                const el = document.createElement('div');
+                el.className = 'emoji-bg';
+                el.textContent = emoji;
+                el.style.left = Math.random() * 90 + 5 + '%';
+                el.style.top = Math.random() * 90 + 5 + '%';
+                el.style.animationDelay = Math.random() * 2 + 's';
+                document.body.appendChild(el);
+                floatingEmojis.push(el);
+            }
+        }
+
+        function showRandomJoke() {
+            const jokeIndex = Math.floor(Math.random() * jokes.length);
+            const bgIndex = Math.floor(Math.random() * backgrounds.length);
+
+            document.getElementById('joke').textContent = jokes[jokeIndex];
+            document.body.style.backgroundColor = backgrounds[bgIndex].color;
+            createFloatingEmojis(backgrounds[bgIndex].emoji);
+        }
+    </script>
+</body>
+</html>
