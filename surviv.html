@@ -445,21 +445,45 @@
 
         // Weapon definitions
         const WEAPONS = {
-            fists: { name: 'Fists', damage: 15, fireRate: 400, range: 50, spread: 0, bullets: 1, speed: 0, ammoType: null, magSize: Infinity, reloadTime: 0, auto: false },
+            // Melee weapons
+            fists: { name: 'Fists', damage: 15, fireRate: 400, range: 50, spread: 0, bullets: 1, speed: 0, ammoType: null, magSize: Infinity, reloadTime: 0, auto: false, melee: true },
+            knife: { name: 'Combat Knife', damage: 35, fireRate: 250, range: 60, spread: 0, bullets: 1, speed: 0, ammoType: null, magSize: Infinity, reloadTime: 0, auto: false, melee: true },
+            machete: { name: 'Machete', damage: 50, fireRate: 500, range: 80, spread: 0, bullets: 1, speed: 0, ammoType: null, magSize: Infinity, reloadTime: 0, auto: false, melee: true },
+            katana: { name: 'Katana', damage: 70, fireRate: 600, range: 100, spread: 0, bullets: 1, speed: 0, ammoType: null, magSize: Infinity, reloadTime: 0, auto: false, melee: true },
+            bat: { name: 'Baseball Bat', damage: 40, fireRate: 450, range: 70, spread: 0, bullets: 1, speed: 0, ammoType: null, magSize: Infinity, reloadTime: 0, auto: false, melee: true },
+            // Pistols
             pistol: { name: 'M9', damage: 12, fireRate: 150, range: 800, spread: 0.05, bullets: 1, speed: 25, ammoType: '9mm', magSize: 15, reloadTime: 1500, auto: false },
             deagle: { name: 'Desert Eagle', damage: 35, fireRate: 300, range: 900, spread: 0.03, bullets: 1, speed: 35, ammoType: '9mm', magSize: 7, reloadTime: 2200, auto: false },
+            revolver: { name: 'Revolver', damage: 45, fireRate: 500, range: 700, spread: 0.02, bullets: 1, speed: 30, ammoType: '9mm', magSize: 6, reloadTime: 2500, auto: false },
+            // Shotguns
             shotgun: { name: 'M870', damage: 10, fireRate: 900, range: 250, spread: 0.15, bullets: 9, speed: 30, ammoType: '12gauge', magSize: 5, reloadTime: 750, auto: false },
             saiga: { name: 'Saiga-12', damage: 8, fireRate: 400, range: 200, spread: 0.18, bullets: 8, speed: 28, ammoType: '12gauge', magSize: 10, reloadTime: 2500, auto: true },
+            spas: { name: 'SPAS-12', damage: 12, fireRate: 700, range: 280, spread: 0.12, bullets: 8, speed: 32, ammoType: '12gauge', magSize: 8, reloadTime: 2000, auto: false },
+            // SMGs
             smg: { name: 'MAC-10', damage: 9, fireRate: 50, range: 400, spread: 0.12, bullets: 1, speed: 22, ammoType: '9mm', magSize: 32, reloadTime: 1900, auto: true },
             mp5: { name: 'MP5', damage: 11, fireRate: 70, range: 450, spread: 0.08, bullets: 1, speed: 24, ammoType: '9mm', magSize: 30, reloadTime: 2000, auto: true },
             vector: { name: 'Vector', damage: 8, fireRate: 35, range: 350, spread: 0.10, bullets: 1, speed: 23, ammoType: '9mm', magSize: 33, reloadTime: 1800, auto: true },
+            p90: { name: 'P90', damage: 10, fireRate: 55, range: 500, spread: 0.07, bullets: 1, speed: 26, ammoType: '9mm', magSize: 50, reloadTime: 2200, auto: true },
+            // Assault Rifles
             assault: { name: 'AK-47', damage: 14, fireRate: 100, range: 700, spread: 0.04, bullets: 1, speed: 28, ammoType: '7.62mm', magSize: 30, reloadTime: 2500, auto: true },
             m4a1: { name: 'M4A1', damage: 12, fireRate: 80, range: 750, spread: 0.03, bullets: 1, speed: 30, ammoType: '7.62mm', magSize: 30, reloadTime: 2200, auto: true },
             scar: { name: 'SCAR-H', damage: 16, fireRate: 110, range: 800, spread: 0.035, bullets: 1, speed: 32, ammoType: '7.62mm', magSize: 20, reloadTime: 2800, auto: true },
+            groza: { name: 'Groza', damage: 15, fireRate: 75, range: 650, spread: 0.05, bullets: 1, speed: 29, ammoType: '7.62mm', magSize: 30, reloadTime: 2300, auto: true },
+            // Snipers
             sniper: { name: 'Mosin', damage: 72, fireRate: 1800, range: 1200, spread: 0.01, bullets: 1, speed: 40, ammoType: '7.62mm', magSize: 5, reloadTime: 3000, auto: false },
             awp: { name: 'AWM', damage: 120, fireRate: 2000, range: 1500, spread: 0.005, bullets: 1, speed: 50, ammoType: '7.62mm', magSize: 5, reloadTime: 3500, auto: false },
+            barrett: { name: 'Barrett M82', damage: 150, fireRate: 2500, range: 1800, spread: 0.003, bullets: 1, speed: 60, ammoType: '7.62mm', magSize: 10, reloadTime: 4000, auto: false },
+            // LMGs
             lmg: { name: 'DP-28', damage: 14, fireRate: 115, range: 600, spread: 0.06, bullets: 1, speed: 26, ammoType: '7.62mm', magSize: 60, reloadTime: 4000, auto: true },
-            minigun: { name: 'M134', damage: 10, fireRate: 25, range: 500, spread: 0.15, bullets: 1, speed: 30, ammoType: '7.62mm', magSize: 200, reloadTime: 8000, auto: true }
+            minigun: { name: 'M134', damage: 10, fireRate: 25, range: 500, spread: 0.15, bullets: 1, speed: 30, ammoType: '7.62mm', magSize: 200, reloadTime: 8000, auto: true },
+            m249: { name: 'M249', damage: 13, fireRate: 80, range: 650, spread: 0.08, bullets: 1, speed: 28, ammoType: '7.62mm', magSize: 100, reloadTime: 5000, auto: true }
+        };
+
+        // Grenade types
+        const GRENADES = {
+            frag: { name: 'Frag Grenade', damage: 100, radius: 150, fuseTime: 3000, color: '#556b2f' },
+            smoke: { name: 'Smoke Grenade', damage: 0, radius: 200, fuseTime: 2000, color: '#808080', smoke: true },
+            molotov: { name: 'Molotov', damage: 15, radius: 100, fuseTime: 500, color: '#ff4500', fire: true, duration: 5000 }
         };
 
         // Game state
@@ -518,7 +542,9 @@
             healing: false,
             healStart: 0,
             healDuration: 0,
-            healAmount: 0
+            healAmount: 0,
+            grenades: { frag: 0, smoke: 0, molotov: 0 },
+            currentGrenade: 'frag'
         };
 
         // Input
@@ -532,6 +558,10 @@
         let obstacles = [];
         let buildings = [];
         let particles = [];
+        let thrownGrenades = [];
+        let chests = [];
+        let fireZones = []; // For molotov fire areas
+        let smokeZones = []; // For smoke grenade areas
         let killMessages = [];
 
         // Building templates
@@ -543,33 +573,58 @@
         ];
 
         // Loot tables
+        // Ground loot (common items)
         const LOOT_TYPES = [
+            // Melee weapons (very common on ground)
+            { type: 'weapon', weapon: 'knife', color: '#A0A0A0', rarity: 0.08 },
+            { type: 'weapon', weapon: 'bat', color: '#8B4513', rarity: 0.06 },
             // Common weapons (gray)
-            { type: 'weapon', weapon: 'pistol', color: '#C0C0C0', rarity: 0.12 },
-            { type: 'weapon', weapon: 'shotgun', color: '#C0C0C0', rarity: 0.08 },
-            { type: 'weapon', weapon: 'smg', color: '#C0C0C0', rarity: 0.08 },
+            { type: 'weapon', weapon: 'pistol', color: '#C0C0C0', rarity: 0.10 },
+            { type: 'weapon', weapon: 'shotgun', color: '#C0C0C0', rarity: 0.06 },
+            { type: 'weapon', weapon: 'smg', color: '#C0C0C0', rarity: 0.06 },
             // Uncommon weapons (green)
-            { type: 'weapon', weapon: 'mp5', color: '#32CD32', rarity: 0.06 },
-            { type: 'weapon', weapon: 'saiga', color: '#32CD32', rarity: 0.05 },
-            // Rare weapons (blue)
-            { type: 'weapon', weapon: 'deagle', color: '#4169E1', rarity: 0.04 },
-            { type: 'weapon', weapon: 'vector', color: '#4169E1', rarity: 0.04 },
-            { type: 'weapon', weapon: 'assault', color: '#4169E1', rarity: 0.05 },
-            // Epic weapons (purple)
-            { type: 'weapon', weapon: 'm4a1', color: '#9932CC', rarity: 0.03 },
-            { type: 'weapon', weapon: 'scar', color: '#9932CC', rarity: 0.025 },
-            { type: 'weapon', weapon: 'sniper', color: '#9932CC', rarity: 0.02 },
-            { type: 'weapon', weapon: 'lmg', color: '#9932CC', rarity: 0.02 },
-            // Legendary weapons (gold)
-            { type: 'weapon', weapon: 'awp', color: '#FFD700', rarity: 0.01 },
-            { type: 'weapon', weapon: 'minigun', color: '#FFD700', rarity: 0.008 },
+            { type: 'weapon', weapon: 'mp5', color: '#32CD32', rarity: 0.04 },
+            { type: 'weapon', weapon: 'saiga', color: '#32CD32', rarity: 0.03 },
+            { type: 'weapon', weapon: 'revolver', color: '#32CD32', rarity: 0.03 },
+            // Rare weapons (blue) - less common on ground
+            { type: 'weapon', weapon: 'deagle', color: '#4169E1', rarity: 0.02 },
+            { type: 'weapon', weapon: 'vector', color: '#4169E1', rarity: 0.02 },
+            { type: 'weapon', weapon: 'assault', color: '#4169E1', rarity: 0.02 },
+            // Grenades
+            { type: 'grenade', grenadeType: 'frag', color: '#556b2f', rarity: 0.06 },
+            { type: 'grenade', grenadeType: 'smoke', color: '#808080', rarity: 0.04 },
+            { type: 'grenade', grenadeType: 'molotov', color: '#ff4500', rarity: 0.03 },
             // Ammo
-            { type: 'ammo', ammoType: '9mm', amount: 60, color: '#FFA500', rarity: 0.40 },
-            { type: 'ammo', ammoType: '12gauge', amount: 20, color: '#FF6347', rarity: 0.30 },
-            { type: 'ammo', ammoType: '7.62mm', amount: 60, color: '#32CD32', rarity: 0.35 },
+            { type: 'ammo', ammoType: '9mm', amount: 60, color: '#FFA500', rarity: 0.35 },
+            { type: 'ammo', ammoType: '12gauge', amount: 20, color: '#FF6347', rarity: 0.25 },
+            { type: 'ammo', ammoType: '7.62mm', amount: 60, color: '#32CD32', rarity: 0.30 },
             // Healing
-            { type: 'heal', healType: 'bandage', color: '#90EE90', rarity: 0.10 },
-            { type: 'heal', healType: 'medkit', color: '#FF69B4', rarity: 0.05 }
+            { type: 'heal', healType: 'bandage', color: '#90EE90', rarity: 0.12 },
+            { type: 'heal', healType: 'medkit', color: '#FF69B4', rarity: 0.06 }
+        ];
+
+        // Chest loot (better items - only spawns in buildings)
+        const CHEST_LOOT = [
+            // Melee weapons (rare)
+            { type: 'weapon', weapon: 'machete', color: '#32CD32', rarity: 0.08 },
+            { type: 'weapon', weapon: 'katana', color: '#FFD700', rarity: 0.03 },
+            // Rare weapons (blue)
+            { type: 'weapon', weapon: 'spas', color: '#4169E1', rarity: 0.10 },
+            { type: 'weapon', weapon: 'p90', color: '#4169E1', rarity: 0.10 },
+            { type: 'weapon', weapon: 'groza', color: '#4169E1', rarity: 0.08 },
+            // Epic weapons (purple)
+            { type: 'weapon', weapon: 'm4a1', color: '#9932CC', rarity: 0.12 },
+            { type: 'weapon', weapon: 'scar', color: '#9932CC', rarity: 0.10 },
+            { type: 'weapon', weapon: 'sniper', color: '#9932CC', rarity: 0.08 },
+            { type: 'weapon', weapon: 'lmg', color: '#9932CC', rarity: 0.08 },
+            { type: 'weapon', weapon: 'm249', color: '#9932CC', rarity: 0.06 },
+            // Legendary weapons (gold)
+            { type: 'weapon', weapon: 'awp', color: '#FFD700', rarity: 0.05 },
+            { type: 'weapon', weapon: 'minigun', color: '#FFD700', rarity: 0.04 },
+            { type: 'weapon', weapon: 'barrett', color: '#FFD700', rarity: 0.03 },
+            // Grenades
+            { type: 'grenade', grenadeType: 'frag', color: '#556b2f', rarity: 0.15 },
+            { type: 'grenade', grenadeType: 'molotov', color: '#ff4500', rarity: 0.10 }
         ];
 
         // Find a valid spawn position not inside obstacles
@@ -612,6 +667,7 @@
 
         function generateBuildings() {
             buildings = [];
+            chests = [];
             for (let i = 0; i < 30; i++) {
                 const template = BUILDING_TEMPLATES[Math.floor(Math.random() * BUILDING_TEMPLATES.length)];
                 const building = {
@@ -620,12 +676,26 @@
                     width: template.width,
                     height: template.height,
                     color: template.color,
-                    doorSide: Math.floor(Math.random() * 4)
+                    doorSide: Math.floor(Math.random() * 4),
+                    doorWidth: 60 // Wider entrances
                 };
                 buildings.push(building);
 
-                // Spawn loot inside buildings
-                for (let j = 0; j < 3; j++) {
+                // Spawn 1-2 chests inside each building
+                const numChests = 1 + Math.floor(Math.random() * 2);
+                for (let j = 0; j < numChests; j++) {
+                    chests.push({
+                        x: building.x + 40 + Math.random() * (building.width - 80),
+                        y: building.y + 40 + Math.random() * (building.height - 80),
+                        width: 30,
+                        height: 25,
+                        opened: false,
+                        building: i
+                    });
+                }
+
+                // Spawn some basic ground loot inside buildings too
+                for (let j = 0; j < 2; j++) {
                     spawnLootAt(
                         building.x + 30 + Math.random() * (building.width - 60),
                         building.y + 30 + Math.random() * (building.height - 60)
@@ -957,6 +1027,18 @@
         }
 
         function pickupLoot() {
+            // Check for chest interaction first
+            for (let i = 0; i < chests.length; i++) {
+                const chest = chests[i];
+                if (chest.opened) continue;
+                const dist = Math.sqrt(Math.pow(player.x - (chest.x + chest.width/2), 2) + Math.pow(player.y - (chest.y + chest.height/2), 2));
+                if (dist < player.radius + 40) {
+                    openChest(chest);
+                    return;
+                }
+            }
+
+            // Then check for loot pickup
             for (let i = loot.length - 1; i >= 0; i--) {
                 const item = loot[i];
                 const dist = Math.sqrt(Math.pow(player.x - item.x, 2) + Math.pow(player.y - item.y, 2));
@@ -992,11 +1074,58 @@
                             player.medkits++;
                             document.getElementById('medkitCount').textContent = player.medkits;
                         }
+                    } else if (item.type === 'grenade') {
+                        player.grenades[item.grenadeType]++;
+                        updateGrenadeUI();
                     }
                     loot.splice(i, 1);
                     break;
                 }
             }
+        }
+
+        function openChest(chest) {
+            chest.opened = true;
+            // Spawn 2-3 items from chest loot table
+            const numItems = 2 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < numItems; i++) {
+                const angle = (i / numItems) * Math.PI * 2;
+                const spawnX = chest.x + chest.width/2 + Math.cos(angle) * 40;
+                const spawnY = chest.y + chest.height/2 + Math.sin(angle) * 40;
+                spawnChestLoot(spawnX, spawnY);
+            }
+            // Create particles for visual feedback
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: chest.x + chest.width/2,
+                    y: chest.y + chest.height/2,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    life: 30,
+                    color: '#FFD700'
+                });
+            }
+        }
+
+        function spawnChestLoot(x, y) {
+            const rand = Math.random();
+            let cumulative = 0;
+            for (const item of CHEST_LOOT) {
+                cumulative += item.rarity;
+                if (rand < cumulative) {
+                    loot.push({
+                        x: x,
+                        y: y,
+                        ...item,
+                        radius: 15
+                    });
+                    break;
+                }
+            }
+        }
+
+        function updateGrenadeUI() {
+            // Update grenade counts in UI if we add grenade display
         }
 
         function shoot() {
