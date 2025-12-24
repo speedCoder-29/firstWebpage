@@ -3154,19 +3154,28 @@
                 ctx.fillRect(enemy.x - 20, enemy.y - 35, 40 * hpPercent, 6);
             });
 
-            // Draw building shadow overlays (hide interior when player is outside)
-            // This is drawn late so it covers enemies, loot, chests inside buildings
+            // Draw building roofs (hide interior when player is outside)
+            // This must be drawn after everything else in buildings
+            ctx.save();
             for (let i = 0; i < buildings.length; i++) {
-                const building = buildings[i];
-                const playerInside = player.x > building.x + 15 && player.x < building.x + building.width - 15 &&
-                                     player.y > building.y + 15 && player.y < building.y + building.height - 15;
-                if (!playerInside) {
-                    // Dark roof to hide building interior
-                    ctx.fillStyle = '#1a1a2e';
-                    ctx.fillRect(building.x + 15, building.y + 15,
-                                 building.width - 30, building.height - 30);
+                const b = buildings[i];
+                // Check if player is inside this building
+                const px = player.x;
+                const py = player.y;
+                const inside = px > b.x && px < b.x + b.width && py > b.y && py < b.y + b.height;
+
+                if (!inside) {
+                    // Draw solid dark roof over the building interior
+                    ctx.fillStyle = '#2d2d3d';
+                    ctx.fillRect(b.x + 15, b.y + 15, b.width - 30, b.height - 30);
+
+                    // Draw roof border
+                    ctx.strokeStyle = '#1a1a2a';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(b.x + 15, b.y + 15, b.width - 30, b.height - 30);
                 }
             }
+            ctx.restore();
 
             // Draw player
             // Body
