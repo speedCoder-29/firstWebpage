@@ -3063,9 +3063,15 @@
                 const playerInside = player.x > building.x + 15 && player.x < building.x + building.width - 15 &&
                                      player.y > building.y + 15 && player.y < building.y + building.height - 15;
                 if (!playerInside) {
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    // Dark shadow to hide building interior
+                    ctx.fillStyle = 'rgba(20, 20, 30, 0.85)';
                     ctx.fillRect(building.x + 15, building.y + 15,
                                  building.width - 30, building.height - 30);
+                    // Roof outline
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(building.x + 15, building.y + 15,
+                                   building.width - 30, building.height - 30);
                 }
             });
 
