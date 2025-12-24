@@ -588,157 +588,15 @@
             // For fleeing detection (used by enemies to target players who are running back into the safe zone)
             lastPos: { x: MAP_SIZE / 2, y: MAP_SIZE / 2 },
             isFleeing: false,
-            // Recoil state (slows movement while firing)
+            // Recoil state
             recoil: 0,
-            recoilRecovery: 0.08
+            recoilAngle: 0,
+            recoilRecovery: 6
         };
 
         // Input
         let keys = {};
         let mouse = { x: 0, y: 0, down: false };
-
-        // Audio context for sound effects
-        let audioCtx = null;
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-        }
-
-        // Sound effect generator
-        function playSound(type, volume = 0.3) {
-            if (!audioCtx) return;
-
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-
-            const now = audioCtx.currentTime;
-            gainNode.gain.setValueAtTime(volume, now);
-
-            switch(type) {
-                case 'shoot':
-                    // Gunshot - short noise burst
-                    oscillator.type = 'sawtooth';
-                    oscillator.frequency.setValueAtTime(150, now);
-                    oscillator.frequency.exponentialRampToValueAtTime(50, now + 0.1);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.1);
-                    break;
-
-                case 'shotgun':
-                    // Shotgun - deeper boom
-                    oscillator.type = 'sawtooth';
-                    oscillator.frequency.setValueAtTime(80, now);
-                    oscillator.frequency.exponentialRampToValueAtTime(30, now + 0.15);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.15);
-                    break;
-
-                case 'sniper':
-                    // Sniper - sharp crack
-                    oscillator.type = 'square';
-                    oscillator.frequency.setValueAtTime(400, now);
-                    oscillator.frequency.exponentialRampToValueAtTime(60, now + 0.2);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.2);
-                    break;
-
-                case 'hit':
-                    // Hit marker sound
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(800, now);
-                    oscillator.frequency.exponentialRampToValueAtTime(400, now + 0.05);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.05);
-                    break;
-
-                case 'kill':
-                    // Kill sound - satisfying ding
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(880, now);
-                    gainNode.gain.setValueAtTime(0.4, now);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.3);
-                    break;
-
-                case 'pickup':
-                    // Item pickup
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(440, now);
-                    oscillator.frequency.exponentialRampToValueAtTime(880, now + 0.1);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.1);
-                    break;
-
-                case 'reload':
-                    // Reload click
-                    oscillator.type = 'square';
-                    oscillator.frequency.setValueAtTime(200, now);
-                    oscillator.frequency.setValueAtTime(300, now + 0.05);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.1);
-                    break;
-
-                case 'hurt':
-                    // Player hurt
-                    oscillator.type = 'sawtooth';
-                    oscillator.frequency.setValueAtTime(200, now);
-                    oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.15);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.15);
-                    break;
-
-                case 'explosion':
-                    // Explosion/grenade
-                    oscillator.type = 'sawtooth';
-                    oscillator.frequency.setValueAtTime(100, now);
-                    oscillator.frequency.exponentialRampToValueAtTime(20, now + 0.4);
-                    gainNode.gain.setValueAtTime(0.5, now);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.4);
-                    break;
-
-                case 'empty':
-                    // Empty clip click
-                    oscillator.type = 'square';
-                    oscillator.frequency.setValueAtTime(100, now);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.03);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.03);
-                    break;
-
-                case 'chest':
-                    // Chest open
-                    oscillator.type = 'triangle';
-                    oscillator.frequency.setValueAtTime(300, now);
-                    oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.15);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.2);
-                    break;
-
-                case 'melee':
-                    // Melee swing
-                    oscillator.type = 'sawtooth';
-                    oscillator.frequency.setValueAtTime(300, now);
-                    oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.08);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.08);
-                    break;
-            }
-        }
 
         // Game objects
         let bullets = [];
@@ -867,29 +725,82 @@
             // Generate regular buildings (scaled for 4x larger map)
             for (let i = 0; i < 120; i++) {
                 const template = BUILDING_TEMPLATES[Math.floor(Math.random() * BUILDING_TEMPLATES.length)];
+                const buildingX = 100 + Math.random() * (MAP_SIZE - 200 - template.width);
+                const buildingY = 100 + Math.random() * (MAP_SIZE - 200 - template.height);
+
+                // Generate doors (1-2 doors on random sides)
+                const numDoors = 1 + Math.floor(Math.random() * 2);
+                const doors = [];
+                const usedSides = [];
+                for (let d = 0; d < numDoors; d++) {
+                    let side;
+                    do {
+                        side = Math.floor(Math.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
+                    } while (usedSides.includes(side));
+                    usedSides.push(side);
+
+                    const doorWidth = 50;
+                    let doorX, doorY;
+                    if (side === 0 || side === 2) { // top or bottom
+                        doorX = template.width * 0.3 + Math.random() * template.width * 0.4 - doorWidth/2;
+                        doorY = side === 0 ? 0 : template.height - 15;
+                    } else { // left or right
+                        doorX = side === 3 ? 0 : template.width - 15;
+                        doorY = template.height * 0.3 + Math.random() * template.height * 0.4 - doorWidth/2;
+                    }
+                    doors.push({ side, x: doorX, y: doorY, width: doorWidth });
+                }
+
+                // Generate windows (2-4 windows on walls without doors)
+                const windows = [];
+                const numWindows = 2 + Math.floor(Math.random() * 3);
+                for (let w = 0; w < numWindows; w++) {
+                    let side;
+                    do {
+                        side = Math.floor(Math.random() * 4);
+                    } while (usedSides.includes(side) && Math.random() < 0.7); // Allow some windows on door sides
+
+                    const windowWidth = 30;
+                    let winX, winY;
+                    if (side === 0 || side === 2) { // top or bottom
+                        winX = 20 + Math.random() * (template.width - 60);
+                        winY = side === 0 ? 0 : template.height - 15;
+                    } else { // left or right
+                        winX = side === 3 ? 0 : template.width - 15;
+                        winY = 20 + Math.random() * (template.height - 60);
+                    }
+                    windows.push({ side, x: winX, y: winY, width: windowWidth });
+                }
+
                 const building = {
-                    x: 100 + Math.random() * (MAP_SIZE - 200 - template.width),
-                    y: 100 + Math.random() * (MAP_SIZE - 200 - template.height),
+                    x: buildingX,
+                    y: buildingY,
                     width: template.width,
                     height: template.height,
                     color: template.color,
-                    doorSide: Math.floor(Math.random() * 4),
-                    doorWidth: 60 // Wider entrances
+                    doors: doors,
+                    windows: windows,
+                    doorWidth: 50
                 };
                 buildings.push(building);
 
-                // Spawn 1-2 chests inside each building
-                const numChests = 1 + Math.floor(Math.random() * 2);
-                for (let j = 0; j < numChests; j++) {
-                    chests.push({
-                        x: building.x + 40 + Math.random() * (building.width - 80),
-                        y: building.y + 40 + Math.random() * (building.height - 80),
-                        width: 30,
-                        height: 25,
-                        opened: false,
-                        building: i
-                    });
-                }
+                // Spawn exactly 2 chests evenly spaced inside each building
+                chests.push({
+                    x: building.x + building.width * 0.25 - 15,
+                    y: building.y + building.height * 0.5 - 12,
+                    width: 30,
+                    height: 25,
+                    opened: false,
+                    building: i
+                });
+                chests.push({
+                    x: building.x + building.width * 0.75 - 15,
+                    y: building.y + building.height * 0.5 - 12,
+                    width: 30,
+                    height: 25,
+                    opened: false,
+                    building: i
+                });
 
                 // Spawn some basic ground loot inside buildings too
                 for (let j = 0; j < 2; j++) {
@@ -923,18 +834,23 @@
                 };
                 bunkers.push(bunker);
 
-                // Spawn 3-5 high-tier chests in underground room
-                const numChests = 3 + Math.floor(Math.random() * 3);
-                for (let j = 0; j < numChests; j++) {
-                    chests.push({
-                        x: bunker.x + 40 + Math.random() * (bunker.width - 80),
-                        y: bunker.y + 40 + Math.random() * (bunker.height - 80),
-                        width: 30,
-                        height: 25,
-                        opened: false,
-                        isBunkerChest: true
-                    });
-                }
+                // Spawn exactly 2 high-tier chests evenly spaced in underground room
+                chests.push({
+                    x: bunker.x + bunker.width * 0.25 - 15,
+                    y: bunker.y + bunker.height * 0.5 - 12,
+                    width: 30,
+                    height: 25,
+                    opened: false,
+                    isBunkerChest: true
+                });
+                chests.push({
+                    x: bunker.x + bunker.width * 0.75 - 15,
+                    y: bunker.y + bunker.height * 0.5 - 12,
+                    width: 30,
+                    height: 25,
+                    opened: false,
+                    isBunkerChest: true
+                });
             }
         }
 
@@ -1055,14 +971,21 @@
                 // Keep a stable base speed so we can temporarily boost when intercepting fleeing players
                 const spd = 3 + Math.random() * 2;
 
+                // Random health between 100-200
+                const enemyHealth = 100 + Math.random() * 100;
+                // Size increases based on health above 100 (up to 100% bigger at 200 health)
+                const baseRadius = 20;
+                const sizeBonus = (enemyHealth - 100) / 100; // 0 to 1
+                const enemyRadius = baseRadius * (1 + sizeBonus);
+
                 const enemy = {
                     x: spawn.x,
                     y: spawn.y,
-                    radius: 20,
+                    radius: enemyRadius,
                     speed: spd,
                     baseSpeed: spd,
-                    health: 150,
-                    maxHealth: 200,
+                    health: enemyHealth,
+                    maxHealth: enemyHealth,
                     angle: Math.random() * Math.PI * 2,
                     weapon: startWeapon,
                     lastShot: 0,
@@ -1299,7 +1222,6 @@
         document.getElementById('startBtn').addEventListener('click', () => {
             document.getElementById('startScreen').style.display = 'none';
             gameStarted = true;
-            initAudio();
             init();
             requestAnimationFrame(gameLoop);
         });
@@ -1316,7 +1238,6 @@
 
             player.reloading = true;
             player.reloadStart = Date.now();
-            playSound('reload', 0.2);
         }
 
         function pickupLoot() {
@@ -1346,14 +1267,30 @@
                                 break;
                             }
                         }
-                        // Only pick up if there's an empty slot
+                        // If empty slot found, use it
                         if (slot !== -1) {
                             player.weapons[slot] = item.weapon;
                             player.magAmmo[slot] = WEAPONS[item.weapon].magSize;
                             player.currentWeapon = slot;
                             updateWeaponUI();
+                        } else if (player.currentWeapon !== 0) {
+                            // Inventory full - replace currently equipped weapon (if not fists)
+                            const oldWeapon = player.weapons[player.currentWeapon];
+                            // Drop the old weapon
+                            loot.push({
+                                x: player.x + (Math.random() - 0.5) * 40,
+                                y: player.y + (Math.random() - 0.5) * 40,
+                                type: 'weapon',
+                                weapon: oldWeapon,
+                                color: '#A0A0A0',
+                                radius: 15
+                            });
+                            // Pick up new weapon
+                            player.weapons[player.currentWeapon] = item.weapon;
+                            player.magAmmo[player.currentWeapon] = WEAPONS[item.weapon].magSize;
+                            updateWeaponUI();
                         } else {
-                            // Inventory full, don't pick up
+                            // Currently on fists with full inventory, don't pick up
                             continue;
                         }
                     } else if (item.type === 'ammo') {
@@ -1372,7 +1309,6 @@
                         updateGrenadeUI();
                     }
                     loot.splice(i, 1);
-                    playSound('pickup', 0.25);
                     break;
                 }
             }
@@ -1393,18 +1329,13 @@
 
         function openChest(chest) {
             chest.opened = true;
-            playSound('chest', 0.3);
-            // Bunker chests give more and better items
-            const numItems = chest.isBunkerChest ? (3 + Math.floor(Math.random() * 2)) : (2 + Math.floor(Math.random() * 2));
-            for (let i = 0; i < numItems; i++) {
-                const angle = (i / numItems) * Math.PI * 2;
-                const spawnX = chest.x + chest.width/2 + Math.cos(angle) * 40;
-                const spawnY = chest.y + chest.height/2 + Math.sin(angle) * 40;
-                if (chest.isBunkerChest) {
-                    spawnBunkerLoot(spawnX, spawnY);
-                } else {
-                    spawnChestLoot(spawnX, spawnY);
-                }
+            // Each chest drops exactly 1 gun
+            const spawnX = chest.x + chest.width/2;
+            const spawnY = chest.y + chest.height/2 + 20;
+            if (chest.isBunkerChest) {
+                spawnBunkerLoot(spawnX, spawnY);
+            } else {
+                spawnChestLoot(spawnX, spawnY);
             }
             // Create particles for visual feedback
             const particleColor = chest.isBunkerChest ? '#FF4444' : '#FFD700';
@@ -1421,37 +1352,27 @@
         }
 
         function spawnChestLoot(x, y) {
-            const rand = Math.random();
-            let cumulative = 0;
-            for (const item of CHEST_LOOT) {
-                cumulative += item.rarity;
-                if (rand < cumulative) {
-                    loot.push({
-                        x: x,
-                        y: y,
-                        ...item,
-                        radius: 15
-                    });
-                    break;
-                }
-            }
+            // Filter to only weapons
+            const weaponLoot = CHEST_LOOT.filter(item => item.type === 'weapon');
+            const item = weaponLoot[Math.floor(Math.random() * weaponLoot.length)];
+            loot.push({
+                x: x,
+                y: y,
+                ...item,
+                radius: 15
+            });
         }
 
         function spawnBunkerLoot(x, y) {
-            const rand = Math.random();
-            let cumulative = 0;
-            for (const item of BUNKER_LOOT) {
-                cumulative += item.rarity;
-                if (rand < cumulative) {
-                    loot.push({
-                        x: x,
-                        y: y,
-                        ...item,
-                        radius: 15
-                    });
-                    break;
-                }
-            }
+            // Filter to only weapons
+            const weaponLoot = BUNKER_LOOT.filter(item => item.type === 'weapon');
+            const item = weaponLoot[Math.floor(Math.random() * weaponLoot.length)];
+            loot.push({
+                x: x,
+                y: y,
+                ...item,
+                radius: 15
+            });
         }
 
         function updateGrenadeUI() {
@@ -1577,7 +1498,7 @@
                 // Trigger air strike warning
                 triggerAirStrike();
                 lastAirStrikeCheck = 0;
-                nextAirStrikeTime = 15000; // 20 seconds between strikes
+                nextAirStrikeTime = 20000; // 20 seconds between strikes
             }
 
             // Update warning phase
@@ -1610,12 +1531,49 @@
         }
 
         function triggerAirStrike() {
-            // Create warning zone at random location within current safe zone
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * zone.radius * 0.7;
-            const strikeX = zone.x + Math.cos(angle) * dist;
-            const strikeY = zone.y + Math.sin(angle) * dist;
-            const strikeRadius = 400 + Math.random() * 300; // 400-700 radius
+            // Find best target location - prioritize groups of enemies or near player
+            let strikeX, strikeY;
+
+            // Find clusters of enemies
+            let bestClusterX = 0, bestClusterY = 0, bestClusterCount = 0;
+            for (const enemy of enemies) {
+                let nearbyCount = 0;
+                for (const other of enemies) {
+                    const dist = Math.sqrt(Math.pow(enemy.x - other.x, 2) + Math.pow(enemy.y - other.y, 2));
+                    if (dist < 600) nearbyCount++;
+                }
+                if (nearbyCount > bestClusterCount) {
+                    bestClusterCount = nearbyCount;
+                    bestClusterX = enemy.x;
+                    bestClusterY = enemy.y;
+                }
+            }
+
+            // Decide target: 40% near player, 40% near enemy cluster, 20% random
+            const roll = Math.random();
+            if (roll < 0.4) {
+                // Target near player (offset slightly so they have a chance)
+                const offsetAngle = Math.random() * Math.PI * 2;
+                const offsetDist = 200 + Math.random() * 400;
+                strikeX = player.x + Math.cos(offsetAngle) * offsetDist;
+                strikeY = player.y + Math.sin(offsetAngle) * offsetDist;
+            } else if (roll < 0.8 && bestClusterCount >= 3) {
+                // Target enemy cluster
+                strikeX = bestClusterX + (Math.random() - 0.5) * 200;
+                strikeY = bestClusterY + (Math.random() - 0.5) * 200;
+            } else {
+                // Random location within safe zone
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * zone.radius * 0.7;
+                strikeX = zone.x + Math.cos(angle) * dist;
+                strikeY = zone.y + Math.sin(angle) * dist;
+            }
+
+            // Keep within map bounds
+            strikeX = Math.max(500, Math.min(MAP_SIZE - 500, strikeX));
+            strikeY = Math.max(500, Math.min(MAP_SIZE - 500, strikeY));
+
+            const strikeRadius = 700 + Math.random() * 500; // 700-1200 radius (larger)
 
             airStrikeWarnings.push({
                 x: strikeX,
@@ -1691,7 +1649,6 @@
 
         function explodeGrenade(g, index) {
             const grenade = GRENADES[g.type];
-            playSound('explosion', 0.4);
 
             if (grenade.fire) {
                 // Molotov creates fire zone
@@ -1794,12 +1751,9 @@
             // Apply damage multiplier from upgrades
             const effectiveDamage = weapon.damage * (player.damageMultiplier || 1);
 
-            // Get weapon recoil (default to 0.3 - slows player by 30% per shot, stacks up)
-            const weaponRecoil = weapon.recoil || 0.3;
-
-            // Create bullets - aim is not affected by recoil
+            // Create bullets - shoot directly at mouse cursor
             for (let i = 0; i < weapon.bullets; i++) {
-                // Apply random spread based on weapon's spread value
+                // Only apply weapon spread, no recoil
                 const spread = (Math.random() - 0.5) * weapon.spread;
                 const angle = player.angle + spread;
 
@@ -1816,29 +1770,14 @@
                         range: weapon.range,
                         traveled: 0,
                         owner: 'player',
-                        trail: [],
-                        bounces: 0
+                        trail: []
                     });
                 }
             }
 
-            // Simple recoil - set to fixed value, doesn't stack
-            player.recoil = 0.5;
-
-            // Muzzle flash and sound (only for guns)
+            // Muzzle flash (only for guns)
             if (weapon.speed > 0) {
                 createMuzzleFlash(player.x + Math.cos(player.angle) * 35, player.y + Math.sin(player.angle) * 35);
-                // Play appropriate gun sound
-                if (weaponKey && weaponKey.includes('shotgun')) {
-                    playSound('shotgun', 0.25);
-                } else if (weaponKey && (weaponKey.includes('sniper') || weaponKey === 'mosin' || weaponKey === 'sv98')) {
-                    playSound('sniper', 0.25);
-                } else {
-                    playSound('shoot', 0.2);
-                }
-            } else {
-                // Melee sound
-                playSound('melee', 0.2);
             }
         }
 
@@ -1903,14 +1842,11 @@
         }
 
         function updatePlayer(dt) {
-            // Decay recoil over time (recover movement speed)
-            player.recoil = Math.max(0, (player.recoil || 0) - player.recoilRecovery * dt / 16.67);
-
             // Calculate angle to mouse - player is always at center of screen
             // so angle is simply from screen center to mouse position
             player.angle = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
 
-            // Movement - slowed by recoil
+            // Movement
             let dx = 0, dy = 0;
             if (keys['w']) dy -= 1;
             if (keys['s']) dy += 1;
@@ -1922,12 +1858,8 @@
                 dx /= len;
                 dy /= len;
 
-                // Apply recoil slowdown (recoil of 0.8 = 80% slower)
-                const recoilSlowdown = 1 - (player.recoil || 0);
-                const currentSpeed = player.speed * recoilSlowdown;
-
-                const newX = player.x + dx * currentSpeed;
-                const newY = player.y + dy * currentSpeed;
+                const newX = player.x + dx * player.speed;
+                const newY = player.y + dy * player.speed;
 
                 // Collision check
                 if (!checkCollision(newX, player.y, player.radius)) {
@@ -2219,6 +2151,9 @@
                 enemy.recoil = Math.max(0, (enemy.recoil || 0) - (enemy.recoilRecovery || 4) * dt);
                 enemy.recoilAngle *= Math.pow(0.6, dt * 60);
 
+                // Passive health regeneration (5 HP per second)
+                enemy.health = Math.min(enemy.maxHealth || 100, enemy.health + 5 * dt / 1000);
+
                 // AI behavior
                 const distToPlayer = Math.sqrt(Math.pow(player.x - enemy.x, 2) + Math.pow(player.y - enemy.y, 2));
                 const distToZone = Math.sqrt(Math.pow(zone.x - enemy.x, 2) + Math.pow(zone.y - enemy.y, 2));
@@ -2227,12 +2162,24 @@
                 for (let j = loot.length - 1; j >= 0; j--) {
                     const item = loot[j];
                     const distToLoot = Math.sqrt(Math.pow(enemy.x - item.x, 2) + Math.pow(enemy.y - item.y, 2));
-                    if (distToLoot < enemy.radius + item.radius) {
+                    if (distToLoot < enemy.radius + item.radius + 10) {
                         if (item.type === 'weapon') {
                             const currentPower = getWeaponPower(enemy.weapon);
                             const newPower = getWeaponPower(item.weapon);
                             // Pick up if no weapon or new weapon is better
                             if (!enemy.weapon || newPower > currentPower) {
+                                // Drop current weapon if we have one
+                                if (enemy.weapon) {
+                                    const oldWeapon = WEAPONS[enemy.weapon];
+                                    loot.push({
+                                        x: enemy.x + (Math.random() - 0.5) * 30,
+                                        y: enemy.y + (Math.random() - 0.5) * 30,
+                                        type: 'weapon',
+                                        weapon: enemy.weapon,
+                                        color: '#A0A0A0',
+                                        radius: 15
+                                    });
+                                }
                                 enemy.weapon = item.weapon;
                                 loot.splice(j, 1);
                             }
@@ -2325,13 +2272,13 @@
                             // Only shoot if has line of sight
                             if (hasLineOfSight(enemy.x, enemy.y, player.x, player.y)) {
                                 enemy.lastShot = Date.now();
-                                // Extra spread from enemy recoil accumulation
-                                const extraSpread = (enemy.recoil || 0) * 0.004;
-                                const spread = (Math.random() - 0.5) * weapon.spread * 8 + (Math.random() - 0.5) * extraSpread;
+                                // Extra spread from enemy recoil accumulation (nerfed 30% - enemies more accurate)
+                                const extraSpread = (enemy.recoil || 0) * 0.003;
+                                const spread = (Math.random() - 0.5) * weapon.spread * 5.6 + (Math.random() - 0.5) * extraSpread;
                                 const angleBase = Math.atan2(player.y - enemy.y, player.x - enemy.x) + enemy.recoilAngle + spread;
 
                                 for (let b = 0; b < weapon.bullets; b++) {
-                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 5;
+                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 3.5;
                                     bullets.push({
                                         x: enemy.x,
                                         y: enemy.y,
@@ -2414,11 +2361,11 @@
                         if (Date.now() - enemy.lastShot > weapon.fireRate && distToPlayer < weapon.range) {
                             if (hasLineOfSight(enemy.x, enemy.y, player.x, player.y)) {
                                 enemy.lastShot = Date.now();
-                                const spread = (Math.random() - 0.5) * weapon.spread * 10; // Less accurate while running
+                                const spread = (Math.random() - 0.5) * weapon.spread * 7; // Less accurate while running (30% nerf)
                                 const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x) + spread;
 
                                 for (let b = 0; b < weapon.bullets; b++) {
-                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 6;
+                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 4.2;
                                     bullets.push({
                                         x: enemy.x,
                                         y: enemy.y,
@@ -2438,6 +2385,72 @@
                     targetY = enemy.targetY;
                 }
 
+                // DANGER AVOIDANCE - check for threats and adjust movement
+                let dangerX = 0, dangerY = 0;
+                let inDanger = false;
+
+                // Avoid air strike warnings
+                for (const warning of airStrikeWarnings) {
+                    const distToStrike = Math.sqrt(Math.pow(enemy.x - warning.x, 2) + Math.pow(enemy.y - warning.y, 2));
+                    if (distToStrike < warning.radius + 100) {
+                        // Flee away from air strike center
+                        const fleeX = enemy.x - warning.x;
+                        const fleeY = enemy.y - warning.y;
+                        const fleeDist = Math.max(1, Math.sqrt(fleeX * fleeX + fleeY * fleeY));
+                        dangerX += (fleeX / fleeDist) * 3; // Strong avoidance
+                        dangerY += (fleeY / fleeDist) * 3;
+                        inDanger = true;
+                    }
+                }
+
+                // Avoid active air strikes
+                for (const strike of airStrikes) {
+                    const distToStrike = Math.sqrt(Math.pow(enemy.x - strike.x, 2) + Math.pow(enemy.y - strike.y, 2));
+                    if (distToStrike < strike.radius + 150) {
+                        const fleeX = enemy.x - strike.x;
+                        const fleeY = enemy.y - strike.y;
+                        const fleeDist = Math.max(1, Math.sqrt(fleeX * fleeX + fleeY * fleeY));
+                        dangerX += (fleeX / fleeDist) * 5; // Very strong avoidance
+                        dangerY += (fleeY / fleeDist) * 5;
+                        inDanger = true;
+                    }
+                }
+
+                // Avoid grenades
+                for (const grenade of thrownGrenades) {
+                    const distToGrenade = Math.sqrt(Math.pow(enemy.x - grenade.x, 2) + Math.pow(enemy.y - grenade.y, 2));
+                    if (distToGrenade < 300) {
+                        const fleeX = enemy.x - grenade.x;
+                        const fleeY = enemy.y - grenade.y;
+                        const fleeDist = Math.max(1, Math.sqrt(fleeX * fleeX + fleeY * fleeY));
+                        dangerX += (fleeX / fleeDist) * 2;
+                        dangerY += (fleeY / fleeDist) * 2;
+                        inDanger = true;
+                    }
+                }
+
+                // Avoid fire zones
+                for (const fire of fireZones) {
+                    const distToFire = Math.sqrt(Math.pow(enemy.x - fire.x, 2) + Math.pow(enemy.y - fire.y, 2));
+                    if (distToFire < fire.radius + 50) {
+                        const fleeX = enemy.x - fire.x;
+                        const fleeY = enemy.y - fire.y;
+                        const fleeDist = Math.max(1, Math.sqrt(fleeX * fleeX + fleeY * fleeY));
+                        dangerX += (fleeX / fleeDist) * 2;
+                        dangerY += (fleeY / fleeDist) * 2;
+                        inDanger = true;
+                    }
+                }
+
+                // If in danger, override target to flee
+                if (inDanger) {
+                    const dangerLen = Math.sqrt(dangerX * dangerX + dangerY * dangerY);
+                    if (dangerLen > 0) {
+                        targetX = enemy.x + (dangerX / dangerLen) * 300;
+                        targetY = enemy.y + (dangerY / dangerLen) * 300;
+                    }
+                }
+
                 const dx = targetX - enemy.x;
                 const dy = targetY - enemy.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -2455,6 +2468,29 @@
                     const curSpeed = (enemy.state === 'intercept' && enemy.baseSpeed) ? (enemy.baseSpeed * 1.3) : enemy.speed;
                     let moveX = (dx / dist) * curSpeed;
                     let moveY = (dy / dist) * curSpeed;
+
+                    // Proactive obstacle avoidance - steer around obstacles before hitting them
+                    for (const obs of obstacles) {
+                        const distToObs = Math.sqrt(Math.pow(enemy.x - obs.x, 2) + Math.pow(enemy.y - obs.y, 2));
+                        const avoidRadius = obs.radius + enemy.radius + 40;
+                        if (distToObs < avoidRadius && distToObs > obs.radius) {
+                            // Check if moving towards obstacle
+                            const toObsX = obs.x - enemy.x;
+                            const toObsY = obs.y - enemy.y;
+                            const dot = moveX * toObsX + moveY * toObsY;
+                            if (dot > 0) {
+                                // Steer perpendicular to obstacle
+                                const avoidStrength = (avoidRadius - distToObs) / avoidRadius;
+                                const perpX = -toObsY / distToObs;
+                                const perpY = toObsX / distToObs;
+                                // Choose direction based on which side is clearer
+                                const side = (perpX * moveX + perpY * moveY) > 0 ? 1 : -1;
+                                moveX += perpX * side * avoidStrength * curSpeed * 0.8;
+                                moveY += perpY * side * avoidStrength * curSpeed * 0.8;
+                            }
+                        }
+                    }
+
                     let newX = enemy.x + moveX;
                     let newY = enemy.y + moveY;
 
@@ -2587,97 +2623,6 @@
                     continue;
                 }
 
-                // Hit building walls (stop bullets)
-                let hitWall = false;
-                for (const building of buildings) {
-                    // Check if bullet is inside building bounds
-                    if (bullet.x > building.x && bullet.x < building.x + building.width &&
-                        bullet.y > building.y && bullet.y < building.y + building.height) {
-                        // Check if in interior (not wall)
-                        const wallThickness = 15;
-                        const inInterior = bullet.x > building.x + wallThickness &&
-                                          bullet.x < building.x + building.width - wallThickness &&
-                                          bullet.y > building.y + wallThickness &&
-                                          bullet.y < building.y + building.height - wallThickness;
-
-                        if (!inInterior) {
-                            // Check door opening using doorSide and doorWidth
-                            let inDoor = false;
-                            const doorWidth = building.doorWidth || 60;
-                            const doorSide = building.doorSide;
-
-                            if (doorSide === 0) { // Top
-                                const doorX = building.x + building.width / 2 - doorWidth / 2;
-                                if (bullet.x > doorX && bullet.x < doorX + doorWidth &&
-                                    bullet.y > building.y && bullet.y < building.y + wallThickness) {
-                                    inDoor = true;
-                                }
-                            } else if (doorSide === 1) { // Right
-                                const doorY = building.y + building.height / 2 - doorWidth / 2;
-                                if (bullet.x > building.x + building.width - wallThickness && bullet.x < building.x + building.width &&
-                                    bullet.y > doorY && bullet.y < doorY + doorWidth) {
-                                    inDoor = true;
-                                }
-                            } else if (doorSide === 2) { // Bottom
-                                const doorX = building.x + building.width / 2 - doorWidth / 2;
-                                if (bullet.x > doorX && bullet.x < doorX + doorWidth &&
-                                    bullet.y > building.y + building.height - wallThickness && bullet.y < building.y + building.height) {
-                                    inDoor = true;
-                                }
-                            } else if (doorSide === 3) { // Left
-                                const doorY = building.y + building.height / 2 - doorWidth / 2;
-                                if (bullet.x > building.x && bullet.x < building.x + wallThickness &&
-                                    bullet.y > doorY && bullet.y < doorY + doorWidth) {
-                                    inDoor = true;
-                                }
-                            }
-
-                            if (!inDoor) {
-                                hitWall = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (hitWall) {
-                    bullets.splice(i, 1);
-                    continue;
-                }
-
-                // Hit bunker walls (reflect bullets)
-                for (const bunker of bunkers) {
-                    // Check underground room walls
-                    if (bullet.x > bunker.x && bullet.x < bunker.x + bunker.width &&
-                        bullet.y > bunker.y && bullet.y < bunker.y + bunker.height) {
-                        const wallThickness = 15;
-                        const inInterior = bullet.x > bunker.x + wallThickness &&
-                                          bullet.x < bunker.x + bunker.width - wallThickness &&
-                                          bullet.y > bunker.y + wallThickness &&
-                                          bullet.y < bunker.y + bunker.height - wallThickness;
-
-                        if (!inInterior && (bullet.bounces || 0) < 3) {
-                            // Determine which wall was hit and reflect
-                            const distLeft = bullet.x - bunker.x;
-                            const distRight = bunker.x + bunker.width - bullet.x;
-                            const distTop = bullet.y - bunker.y;
-                            const distBottom = bunker.y + bunker.height - bullet.y;
-
-                            const minDist = Math.min(distLeft, distRight, distTop, distBottom);
-
-                            if (minDist === distLeft || minDist === distRight) {
-                                bullet.vx = -bullet.vx; // Reflect horizontally
-                            } else {
-                                bullet.vy = -bullet.vy; // Reflect vertically
-                            }
-
-                            bullet.bounces = (bullet.bounces || 0) + 1;
-                            // Move bullet out of wall
-                            bullet.x += bullet.vx * 2;
-                            bullet.y += bullet.vy * 2;
-                        }
-                    }
-                }
-
                 // Hit obstacles
                 let hitObstacle = false;
                 for (let j = obstacles.length - 1; j >= 0; j--) {
@@ -2706,7 +2651,6 @@
                         createDamageParticle(player.x, player.y);
                         updateHealthBar();
                         bullets.splice(i, 1);
-                        playSound('hurt', 0.3);
 
                         if (player.health <= 0) {
                             endGame(false);
@@ -2723,7 +2667,6 @@
                             enemy.health -= bullet.damage;
                             createDamageParticle(enemy.x, enemy.y);
                             bullets.splice(i, 1);
-                            playSound('hit', 0.2);
 
                             if (enemy.health <= 0) {
                                 kills++;
@@ -2733,7 +2676,6 @@
                                 player.health = player.maxHealth;
                                 updateHealthBar();
                                 checkForUpgrade();
-                                playSound('kill', 0.3);
                             }
                             break;
                         }
@@ -2964,31 +2906,84 @@
                 ctx.fillRect(openingX, bunker.y, bunker.staircaseWidth, 15);
             });
 
+            // Check if player is inside a building
+            function isPlayerInBuilding(building) {
+                return player.x > building.x + 10 && player.x < building.x + building.width - 10 &&
+                       player.y > building.y + 10 && player.y < building.y + building.height - 10;
+            }
+
             // Draw buildings
             buildings.forEach(building => {
+                const playerInside = isPlayerInBuilding(building);
+
                 // Floor
                 ctx.fillStyle = '#8B7355';
                 ctx.fillRect(building.x + 10, building.y + 10, building.width - 20, building.height - 20);
 
                 // Walls
                 ctx.fillStyle = building.color;
-                ctx.fillRect(building.x, building.y, building.width, 10); // Top
-                ctx.fillRect(building.x, building.y + building.height - 10, building.width, 10); // Bottom
-                ctx.fillRect(building.x, building.y, 10, building.height); // Left
-                ctx.fillRect(building.x + building.width - 10, building.y, 10, building.height); // Right
+                const wallThickness = 15;
+                ctx.fillRect(building.x, building.y, building.width, wallThickness); // Top
+                ctx.fillRect(building.x, building.y + building.height - wallThickness, building.width, wallThickness); // Bottom
+                ctx.fillRect(building.x, building.y, wallThickness, building.height); // Left
+                ctx.fillRect(building.x + building.width - wallThickness, building.y, wallThickness, building.height); // Right
 
-                // Door (use building's doorWidth)
+                // Draw doors (openings in walls)
                 ctx.fillStyle = '#8B7355';
-                const doorSize = building.doorWidth || 60;
-                if (building.doorSide === 0) { // Top
-                    ctx.fillRect(building.x + building.width / 2 - doorSize / 2, building.y, doorSize, 10);
-                } else if (building.doorSide === 1) { // Right
-                    ctx.fillRect(building.x + building.width - 10, building.y + building.height / 2 - doorSize / 2, 10, doorSize);
-                } else if (building.doorSide === 2) { // Bottom
-                    ctx.fillRect(building.x + building.width / 2 - doorSize / 2, building.y + building.height - 10, doorSize, 10);
-                } else { // Left
-                    ctx.fillRect(building.x, building.y + building.height / 2 - doorSize / 2, 10, doorSize);
+                if (building.doors) {
+                    building.doors.forEach(door => {
+                        if (door.side === 0) { // Top
+                            ctx.fillRect(building.x + door.x, building.y, door.width, wallThickness);
+                        } else if (door.side === 1) { // Right
+                            ctx.fillRect(building.x + building.width - wallThickness, building.y + door.y, wallThickness, door.width);
+                        } else if (door.side === 2) { // Bottom
+                            ctx.fillRect(building.x + door.x, building.y + building.height - wallThickness, door.width, wallThickness);
+                        } else { // Left
+                            ctx.fillRect(building.x, building.y + door.y, wallThickness, door.width);
+                        }
+                        // Door frame
+                        ctx.strokeStyle = '#5a3a1a';
+                        ctx.lineWidth = 2;
+                        if (door.side === 0) {
+                            ctx.strokeRect(building.x + door.x, building.y, door.width, wallThickness);
+                        } else if (door.side === 1) {
+                            ctx.strokeRect(building.x + building.width - wallThickness, building.y + door.y, wallThickness, door.width);
+                        } else if (door.side === 2) {
+                            ctx.strokeRect(building.x + door.x, building.y + building.height - wallThickness, door.width, wallThickness);
+                        } else {
+                            ctx.strokeRect(building.x, building.y + door.y, wallThickness, door.width);
+                        }
+                    });
                 }
+
+                // Draw windows (lighter openings)
+                ctx.fillStyle = '#87CEEB'; // Light blue for glass
+                if (building.windows) {
+                    building.windows.forEach(win => {
+                        if (win.side === 0) { // Top
+                            ctx.fillRect(building.x + win.x, building.y + 3, win.width, wallThickness - 6);
+                        } else if (win.side === 1) { // Right
+                            ctx.fillRect(building.x + building.width - wallThickness + 3, building.y + win.y, wallThickness - 6, win.width);
+                        } else if (win.side === 2) { // Bottom
+                            ctx.fillRect(building.x + win.x, building.y + building.height - wallThickness + 3, win.width, wallThickness - 6);
+                        } else { // Left
+                            ctx.fillRect(building.x + 3, building.y + win.y, wallThickness - 6, win.width);
+                        }
+                        // Window frame
+                        ctx.strokeStyle = '#4a4a4a';
+                        ctx.lineWidth = 1;
+                        if (win.side === 0) {
+                            ctx.strokeRect(building.x + win.x, building.y + 3, win.width, wallThickness - 6);
+                        } else if (win.side === 1) {
+                            ctx.strokeRect(building.x + building.width - wallThickness + 3, building.y + win.y, wallThickness - 6, win.width);
+                        } else if (win.side === 2) {
+                            ctx.strokeRect(building.x + win.x, building.y + building.height - wallThickness + 3, win.width, wallThickness - 6);
+                        } else {
+                            ctx.strokeRect(building.x + 3, building.y + win.y, wallThickness - 6, win.width);
+                        }
+                    });
+                }
+
             });
 
             // Draw chests
@@ -3158,6 +3153,29 @@
                 ctx.fillStyle = hpPercent > 0.3 ? '#4CAF50' : '#f44336';
                 ctx.fillRect(enemy.x - 20, enemy.y - 35, 40 * hpPercent, 6);
             });
+
+            // Draw building roofs (hide interior when player is outside)
+            // This must be drawn after everything else in buildings
+            ctx.save();
+            for (let i = 0; i < buildings.length; i++) {
+                const b = buildings[i];
+                // Check if player is inside this building
+                const px = player.x;
+                const py = player.y;
+                const inside = px > b.x && px < b.x + b.width && py > b.y && py < b.y + b.height;
+
+                if (!inside) {
+                    // Draw solid dark roof over the building interior
+                    ctx.fillStyle = '#2d2d3d';
+                    ctx.fillRect(b.x + 15, b.y + 15, b.width - 30, b.height - 30);
+
+                    // Draw roof border
+                    ctx.strokeStyle = '#1a1a2a';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(b.x + 15, b.y + 15, b.width - 30, b.height - 30);
+                }
+            }
+            ctx.restore();
 
             // Draw player
             // Body
