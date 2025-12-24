@@ -2984,12 +2984,6 @@
                     });
                 }
 
-                // Shadow overlay when player is outside building
-                if (!playerInside) {
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-                    ctx.fillRect(building.x + wallThickness, building.y + wallThickness,
-                                 building.width - wallThickness * 2, building.height - wallThickness * 2);
-                }
             });
 
             // Draw chests
@@ -3061,6 +3055,17 @@
                     ctx.fillText(item.ammoType, item.x, item.y + 25);
                 } else if (item.type === 'heal') {
                     ctx.fillText(item.healType, item.x, item.y + 25);
+                }
+            });
+
+            // Draw building shadow overlays (hide interior when player is outside)
+            buildings.forEach(building => {
+                const playerInside = player.x > building.x + 15 && player.x < building.x + building.width - 15 &&
+                                     player.y > building.y + 15 && player.y < building.y + building.height - 15;
+                if (!playerInside) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(building.x + 15, building.y + 15,
+                                 building.width - 30, building.height - 30);
                 }
             });
 
