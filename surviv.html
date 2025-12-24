@@ -3058,23 +3058,6 @@
                 }
             });
 
-            // Draw building shadow overlays (hide interior when player is outside)
-            buildings.forEach(building => {
-                const playerInside = player.x > building.x + 15 && player.x < building.x + building.width - 15 &&
-                                     player.y > building.y + 15 && player.y < building.y + building.height - 15;
-                if (!playerInside) {
-                    // Dark shadow to hide building interior
-                    ctx.fillStyle = 'rgba(20, 20, 30, 0.85)';
-                    ctx.fillRect(building.x + 15, building.y + 15,
-                                 building.width - 30, building.height - 30);
-                    // Roof outline
-                    ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(building.x + 15, building.y + 15,
-                                   building.width - 30, building.height - 30);
-                }
-            });
-
             // Draw particles
             particles.forEach(p => {
                 const alpha = p.life / p.maxLife;
@@ -3170,6 +3153,20 @@
                 ctx.fillStyle = hpPercent > 0.3 ? '#4CAF50' : '#f44336';
                 ctx.fillRect(enemy.x - 20, enemy.y - 35, 40 * hpPercent, 6);
             });
+
+            // Draw building shadow overlays (hide interior when player is outside)
+            // This is drawn late so it covers enemies, loot, chests inside buildings
+            for (let i = 0; i < buildings.length; i++) {
+                const building = buildings[i];
+                const playerInside = player.x > building.x + 15 && player.x < building.x + building.width - 15 &&
+                                     player.y > building.y + 15 && player.y < building.y + building.height - 15;
+                if (!playerInside) {
+                    // Dark roof to hide building interior
+                    ctx.fillStyle = '#1a1a2e';
+                    ctx.fillRect(building.x + 15, building.y + 15,
+                                 building.width - 30, building.height - 30);
+                }
+            }
 
             // Draw player
             // Body
