@@ -725,29 +725,82 @@
             // Generate regular buildings (scaled for 4x larger map)
             for (let i = 0; i < 120; i++) {
                 const template = BUILDING_TEMPLATES[Math.floor(Math.random() * BUILDING_TEMPLATES.length)];
+                const buildingX = 100 + Math.random() * (MAP_SIZE - 200 - template.width);
+                const buildingY = 100 + Math.random() * (MAP_SIZE - 200 - template.height);
+
+                // Generate doors (1-2 doors on random sides)
+                const numDoors = 1 + Math.floor(Math.random() * 2);
+                const doors = [];
+                const usedSides = [];
+                for (let d = 0; d < numDoors; d++) {
+                    let side;
+                    do {
+                        side = Math.floor(Math.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
+                    } while (usedSides.includes(side));
+                    usedSides.push(side);
+
+                    const doorWidth = 50;
+                    let doorX, doorY;
+                    if (side === 0 || side === 2) { // top or bottom
+                        doorX = template.width * 0.3 + Math.random() * template.width * 0.4 - doorWidth/2;
+                        doorY = side === 0 ? 0 : template.height - 15;
+                    } else { // left or right
+                        doorX = side === 3 ? 0 : template.width - 15;
+                        doorY = template.height * 0.3 + Math.random() * template.height * 0.4 - doorWidth/2;
+                    }
+                    doors.push({ side, x: doorX, y: doorY, width: doorWidth });
+                }
+
+                // Generate windows (2-4 windows on walls without doors)
+                const windows = [];
+                const numWindows = 2 + Math.floor(Math.random() * 3);
+                for (let w = 0; w < numWindows; w++) {
+                    let side;
+                    do {
+                        side = Math.floor(Math.random() * 4);
+                    } while (usedSides.includes(side) && Math.random() < 0.7); // Allow some windows on door sides
+
+                    const windowWidth = 30;
+                    let winX, winY;
+                    if (side === 0 || side === 2) { // top or bottom
+                        winX = 20 + Math.random() * (template.width - 60);
+                        winY = side === 0 ? 0 : template.height - 15;
+                    } else { // left or right
+                        winX = side === 3 ? 0 : template.width - 15;
+                        winY = 20 + Math.random() * (template.height - 60);
+                    }
+                    windows.push({ side, x: winX, y: winY, width: windowWidth });
+                }
+
                 const building = {
-                    x: 100 + Math.random() * (MAP_SIZE - 200 - template.width),
-                    y: 100 + Math.random() * (MAP_SIZE - 200 - template.height),
+                    x: buildingX,
+                    y: buildingY,
                     width: template.width,
                     height: template.height,
                     color: template.color,
-                    doorSide: Math.floor(Math.random() * 4),
-                    doorWidth: 60 // Wider entrances
+                    doors: doors,
+                    windows: windows,
+                    doorWidth: 50
                 };
                 buildings.push(building);
 
-                // Spawn 1-2 chests inside each building
-                const numChests = 1 + Math.floor(Math.random() * 2);
-                for (let j = 0; j < numChests; j++) {
-                    chests.push({
-                        x: building.x + 40 + Math.random() * (building.width - 80),
-                        y: building.y + 40 + Math.random() * (building.height - 80),
-                        width: 30,
-                        height: 25,
-                        opened: false,
-                        building: i
-                    });
-                }
+                // Spawn exactly 2 chests evenly spaced inside each building
+                chests.push({
+                    x: building.x + building.width * 0.25 - 15,
+                    y: building.y + building.height * 0.5 - 12,
+                    width: 30,
+                    height: 25,
+                    opened: false,
+                    building: i
+                });
+                chests.push({
+                    x: building.x + building.width * 0.75 - 15,
+                    y: building.y + building.height * 0.5 - 12,
+                    width: 30,
+                    height: 25,
+                    opened: false,
+                    building: i
+                });
 
                 // Spawn some basic ground loot inside buildings too
                 for (let j = 0; j < 2; j++) {
@@ -781,18 +834,23 @@
                 };
                 bunkers.push(bunker);
 
-                // Spawn 3-5 high-tier chests in underground room
-                const numChests = 3 + Math.floor(Math.random() * 3);
-                for (let j = 0; j < numChests; j++) {
-                    chests.push({
-                        x: bunker.x + 40 + Math.random() * (bunker.width - 80),
-                        y: bunker.y + 40 + Math.random() * (bunker.height - 80),
-                        width: 30,
-                        height: 25,
-                        opened: false,
-                        isBunkerChest: true
-                    });
-                }
+                // Spawn exactly 2 high-tier chests evenly spaced in underground room
+                chests.push({
+                    x: bunker.x + bunker.width * 0.25 - 15,
+                    y: bunker.y + bunker.height * 0.5 - 12,
+                    width: 30,
+                    height: 25,
+                    opened: false,
+                    isBunkerChest: true
+                });
+                chests.push({
+                    x: bunker.x + bunker.width * 0.75 - 15,
+                    y: bunker.y + bunker.height * 0.5 - 12,
+                    width: 30,
+                    height: 25,
+                    opened: false,
+                    isBunkerChest: true
+                });
             }
         }
 
@@ -913,14 +971,21 @@
                 // Keep a stable base speed so we can temporarily boost when intercepting fleeing players
                 const spd = 3 + Math.random() * 2;
 
+                // Random health between 100-200
+                const enemyHealth = 100 + Math.random() * 100;
+                // Size increases based on health above 100 (up to 100% bigger at 200 health)
+                const baseRadius = 20;
+                const sizeBonus = (enemyHealth - 100) / 100; // 0 to 1
+                const enemyRadius = baseRadius * (1 + sizeBonus);
+
                 const enemy = {
                     x: spawn.x,
                     y: spawn.y,
-                    radius: 20,
+                    radius: enemyRadius,
                     speed: spd,
                     baseSpeed: spd,
-                    health: 150,
-                    maxHealth: 200,
+                    health: enemyHealth,
+                    maxHealth: enemyHealth,
                     angle: Math.random() * Math.PI * 2,
                     weapon: startWeapon,
                     lastShot: 0,
@@ -1202,14 +1267,30 @@
                                 break;
                             }
                         }
-                        // Only pick up if there's an empty slot
+                        // If empty slot found, use it
                         if (slot !== -1) {
                             player.weapons[slot] = item.weapon;
                             player.magAmmo[slot] = WEAPONS[item.weapon].magSize;
                             player.currentWeapon = slot;
                             updateWeaponUI();
+                        } else if (player.currentWeapon !== 0) {
+                            // Inventory full - replace currently equipped weapon (if not fists)
+                            const oldWeapon = player.weapons[player.currentWeapon];
+                            // Drop the old weapon
+                            loot.push({
+                                x: player.x + (Math.random() - 0.5) * 40,
+                                y: player.y + (Math.random() - 0.5) * 40,
+                                type: 'weapon',
+                                weapon: oldWeapon,
+                                color: '#A0A0A0',
+                                radius: 15
+                            });
+                            // Pick up new weapon
+                            player.weapons[player.currentWeapon] = item.weapon;
+                            player.magAmmo[player.currentWeapon] = WEAPONS[item.weapon].magSize;
+                            updateWeaponUI();
                         } else {
-                            // Inventory full, don't pick up
+                            // Currently on fists with full inventory, don't pick up
                             continue;
                         }
                     } else if (item.type === 'ammo') {
@@ -1248,17 +1329,13 @@
 
         function openChest(chest) {
             chest.opened = true;
-            // Bunker chests give more and better items
-            const numItems = chest.isBunkerChest ? (3 + Math.floor(Math.random() * 2)) : (2 + Math.floor(Math.random() * 2));
-            for (let i = 0; i < numItems; i++) {
-                const angle = (i / numItems) * Math.PI * 2;
-                const spawnX = chest.x + chest.width/2 + Math.cos(angle) * 40;
-                const spawnY = chest.y + chest.height/2 + Math.sin(angle) * 40;
-                if (chest.isBunkerChest) {
-                    spawnBunkerLoot(spawnX, spawnY);
-                } else {
-                    spawnChestLoot(spawnX, spawnY);
-                }
+            // Each chest drops exactly 1 gun
+            const spawnX = chest.x + chest.width/2;
+            const spawnY = chest.y + chest.height/2 + 20;
+            if (chest.isBunkerChest) {
+                spawnBunkerLoot(spawnX, spawnY);
+            } else {
+                spawnChestLoot(spawnX, spawnY);
             }
             // Create particles for visual feedback
             const particleColor = chest.isBunkerChest ? '#FF4444' : '#FFD700';
@@ -1275,37 +1352,27 @@
         }
 
         function spawnChestLoot(x, y) {
-            const rand = Math.random();
-            let cumulative = 0;
-            for (const item of CHEST_LOOT) {
-                cumulative += item.rarity;
-                if (rand < cumulative) {
-                    loot.push({
-                        x: x,
-                        y: y,
-                        ...item,
-                        radius: 15
-                    });
-                    break;
-                }
-            }
+            // Filter to only weapons
+            const weaponLoot = CHEST_LOOT.filter(item => item.type === 'weapon');
+            const item = weaponLoot[Math.floor(Math.random() * weaponLoot.length)];
+            loot.push({
+                x: x,
+                y: y,
+                ...item,
+                radius: 15
+            });
         }
 
         function spawnBunkerLoot(x, y) {
-            const rand = Math.random();
-            let cumulative = 0;
-            for (const item of BUNKER_LOOT) {
-                cumulative += item.rarity;
-                if (rand < cumulative) {
-                    loot.push({
-                        x: x,
-                        y: y,
-                        ...item,
-                        radius: 15
-                    });
-                    break;
-                }
-            }
+            // Filter to only weapons
+            const weaponLoot = BUNKER_LOOT.filter(item => item.type === 'weapon');
+            const item = weaponLoot[Math.floor(Math.random() * weaponLoot.length)];
+            loot.push({
+                x: x,
+                y: y,
+                ...item,
+                radius: 15
+            });
         }
 
         function updateGrenadeUI() {
@@ -2095,12 +2162,24 @@
                 for (let j = loot.length - 1; j >= 0; j--) {
                     const item = loot[j];
                     const distToLoot = Math.sqrt(Math.pow(enemy.x - item.x, 2) + Math.pow(enemy.y - item.y, 2));
-                    if (distToLoot < enemy.radius + item.radius) {
+                    if (distToLoot < enemy.radius + item.radius + 10) {
                         if (item.type === 'weapon') {
                             const currentPower = getWeaponPower(enemy.weapon);
                             const newPower = getWeaponPower(item.weapon);
                             // Pick up if no weapon or new weapon is better
                             if (!enemy.weapon || newPower > currentPower) {
+                                // Drop current weapon if we have one
+                                if (enemy.weapon) {
+                                    const oldWeapon = WEAPONS[enemy.weapon];
+                                    loot.push({
+                                        x: enemy.x + (Math.random() - 0.5) * 30,
+                                        y: enemy.y + (Math.random() - 0.5) * 30,
+                                        type: 'weapon',
+                                        weapon: enemy.weapon,
+                                        color: '#A0A0A0',
+                                        radius: 15
+                                    });
+                                }
                                 enemy.weapon = item.weapon;
                                 loot.splice(j, 1);
                             }
@@ -2193,13 +2272,13 @@
                             // Only shoot if has line of sight
                             if (hasLineOfSight(enemy.x, enemy.y, player.x, player.y)) {
                                 enemy.lastShot = Date.now();
-                                // Extra spread from enemy recoil accumulation
-                                const extraSpread = (enemy.recoil || 0) * 0.004;
-                                const spread = (Math.random() - 0.5) * weapon.spread * 8 + (Math.random() - 0.5) * extraSpread;
+                                // Extra spread from enemy recoil accumulation (nerfed 30% - enemies more accurate)
+                                const extraSpread = (enemy.recoil || 0) * 0.003;
+                                const spread = (Math.random() - 0.5) * weapon.spread * 5.6 + (Math.random() - 0.5) * extraSpread;
                                 const angleBase = Math.atan2(player.y - enemy.y, player.x - enemy.x) + enemy.recoilAngle + spread;
 
                                 for (let b = 0; b < weapon.bullets; b++) {
-                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 5;
+                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 3.5;
                                     bullets.push({
                                         x: enemy.x,
                                         y: enemy.y,
@@ -2282,11 +2361,11 @@
                         if (Date.now() - enemy.lastShot > weapon.fireRate && distToPlayer < weapon.range) {
                             if (hasLineOfSight(enemy.x, enemy.y, player.x, player.y)) {
                                 enemy.lastShot = Date.now();
-                                const spread = (Math.random() - 0.5) * weapon.spread * 10; // Less accurate while running
+                                const spread = (Math.random() - 0.5) * weapon.spread * 7; // Less accurate while running (30% nerf)
                                 const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x) + spread;
 
                                 for (let b = 0; b < weapon.bullets; b++) {
-                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 6;
+                                    const bulletSpread = (Math.random() - 0.5) * weapon.spread * 4.2;
                                     bullets.push({
                                         x: enemy.x,
                                         y: enemy.y,
@@ -2827,30 +2906,89 @@
                 ctx.fillRect(openingX, bunker.y, bunker.staircaseWidth, 15);
             });
 
+            // Check if player is inside a building
+            function isPlayerInBuilding(building) {
+                return player.x > building.x + 10 && player.x < building.x + building.width - 10 &&
+                       player.y > building.y + 10 && player.y < building.y + building.height - 10;
+            }
+
             // Draw buildings
             buildings.forEach(building => {
+                const playerInside = isPlayerInBuilding(building);
+
                 // Floor
                 ctx.fillStyle = '#8B7355';
                 ctx.fillRect(building.x + 10, building.y + 10, building.width - 20, building.height - 20);
 
                 // Walls
                 ctx.fillStyle = building.color;
-                ctx.fillRect(building.x, building.y, building.width, 10); // Top
-                ctx.fillRect(building.x, building.y + building.height - 10, building.width, 10); // Bottom
-                ctx.fillRect(building.x, building.y, 10, building.height); // Left
-                ctx.fillRect(building.x + building.width - 10, building.y, 10, building.height); // Right
+                const wallThickness = 15;
+                ctx.fillRect(building.x, building.y, building.width, wallThickness); // Top
+                ctx.fillRect(building.x, building.y + building.height - wallThickness, building.width, wallThickness); // Bottom
+                ctx.fillRect(building.x, building.y, wallThickness, building.height); // Left
+                ctx.fillRect(building.x + building.width - wallThickness, building.y, wallThickness, building.height); // Right
 
-                // Door (use building's doorWidth)
+                // Draw doors (openings in walls)
                 ctx.fillStyle = '#8B7355';
-                const doorSize = building.doorWidth || 60;
-                if (building.doorSide === 0) { // Top
-                    ctx.fillRect(building.x + building.width / 2 - doorSize / 2, building.y, doorSize, 10);
-                } else if (building.doorSide === 1) { // Right
-                    ctx.fillRect(building.x + building.width - 10, building.y + building.height / 2 - doorSize / 2, 10, doorSize);
-                } else if (building.doorSide === 2) { // Bottom
-                    ctx.fillRect(building.x + building.width / 2 - doorSize / 2, building.y + building.height - 10, doorSize, 10);
-                } else { // Left
-                    ctx.fillRect(building.x, building.y + building.height / 2 - doorSize / 2, 10, doorSize);
+                if (building.doors) {
+                    building.doors.forEach(door => {
+                        if (door.side === 0) { // Top
+                            ctx.fillRect(building.x + door.x, building.y, door.width, wallThickness);
+                        } else if (door.side === 1) { // Right
+                            ctx.fillRect(building.x + building.width - wallThickness, building.y + door.y, wallThickness, door.width);
+                        } else if (door.side === 2) { // Bottom
+                            ctx.fillRect(building.x + door.x, building.y + building.height - wallThickness, door.width, wallThickness);
+                        } else { // Left
+                            ctx.fillRect(building.x, building.y + door.y, wallThickness, door.width);
+                        }
+                        // Door frame
+                        ctx.strokeStyle = '#5a3a1a';
+                        ctx.lineWidth = 2;
+                        if (door.side === 0) {
+                            ctx.strokeRect(building.x + door.x, building.y, door.width, wallThickness);
+                        } else if (door.side === 1) {
+                            ctx.strokeRect(building.x + building.width - wallThickness, building.y + door.y, wallThickness, door.width);
+                        } else if (door.side === 2) {
+                            ctx.strokeRect(building.x + door.x, building.y + building.height - wallThickness, door.width, wallThickness);
+                        } else {
+                            ctx.strokeRect(building.x, building.y + door.y, wallThickness, door.width);
+                        }
+                    });
+                }
+
+                // Draw windows (lighter openings)
+                ctx.fillStyle = '#87CEEB'; // Light blue for glass
+                if (building.windows) {
+                    building.windows.forEach(win => {
+                        if (win.side === 0) { // Top
+                            ctx.fillRect(building.x + win.x, building.y + 3, win.width, wallThickness - 6);
+                        } else if (win.side === 1) { // Right
+                            ctx.fillRect(building.x + building.width - wallThickness + 3, building.y + win.y, wallThickness - 6, win.width);
+                        } else if (win.side === 2) { // Bottom
+                            ctx.fillRect(building.x + win.x, building.y + building.height - wallThickness + 3, win.width, wallThickness - 6);
+                        } else { // Left
+                            ctx.fillRect(building.x + 3, building.y + win.y, wallThickness - 6, win.width);
+                        }
+                        // Window frame
+                        ctx.strokeStyle = '#4a4a4a';
+                        ctx.lineWidth = 1;
+                        if (win.side === 0) {
+                            ctx.strokeRect(building.x + win.x, building.y + 3, win.width, wallThickness - 6);
+                        } else if (win.side === 1) {
+                            ctx.strokeRect(building.x + building.width - wallThickness + 3, building.y + win.y, wallThickness - 6, win.width);
+                        } else if (win.side === 2) {
+                            ctx.strokeRect(building.x + win.x, building.y + building.height - wallThickness + 3, win.width, wallThickness - 6);
+                        } else {
+                            ctx.strokeRect(building.x + 3, building.y + win.y, wallThickness - 6, win.width);
+                        }
+                    });
+                }
+
+                // Shadow overlay when player is outside building
+                if (!playerInside) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                    ctx.fillRect(building.x + wallThickness, building.y + wallThickness,
+                                 building.width - wallThickness * 2, building.height - wallThickness * 2);
                 }
             });
 
